@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useMutation } from "@tanstack/react-query";
+import { signIn } from "next-auth/react";
 import { cn } from "@/libs/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,43 +15,39 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-async function postLogin(credentials) {
-  const res = await fetch("http://laravel-api.test/api/auth/login", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(credentials),
-  });
-
-  if (!res.ok) {
-    const errorData = await res.json();
-    throw new Error(errorData.message || "Login gagal.");
-  }
-
-  return res.json();
-}
-
 export function LoginForm({ className, ...props }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [isPending, setIsPending] = useState(false);
+  const [error, setError] = useState("");
   const router = useRouter();
 
-  const { mutate, isPending, isError, error } = useMutation({
-    mutationFn: postLogin,
-    onSuccess: (data) => {
-      localStorage.setItem("token", data.data.access_token);
-      localStorage.setItem("user", JSON.stringify(data.data.user));
-      router.push("/dashboard");
-    },
-    onError: (err) => {
-      console.log(err);
-    },
-  });
-
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    mutate({ email, password });
+    setIsPending(true);
+    setError("");
+
+    try {
+      const result = await signIn("credentials", {
+        email,
+        password,
+        redirect: false,
+        callbackUrl: "/dashboard",
+      });
+
+      if (result?.error) {
+        setError("Email atau password salah");
+      } else if (result?.ok) {
+        // Redirect ke dashboard setelah login berhasil
+        router.push("/dashboard");
+        router.refresh();
+      }
+    } catch (err) {
+      console.error("Login error:", err);
+      setError("Terjadi kesalahan saat login");
+    } finally {
+      setIsPending(false);
+    }
   };
 
   return (
@@ -75,7 +71,7 @@ export function LoginForm({ className, ...props }) {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  disabled={isPending} // Nonaktifkan input saat loading
+                  disabled={isPending}
                 />
               </div>
               <div className="grid gap-3">
@@ -89,13 +85,11 @@ export function LoginForm({ className, ...props }) {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  disabled={isPending} // Nonaktifkan input saat loading
+                  disabled={isPending}
                 />
               </div>
-              {isError && ( // Tampilkan error jika ada
-                <div className="text-red-500 text-sm text-center">
-                  {error?.message || "Terjadi kesalahan saat login."}
-                </div>
+              {error && (
+                <div className="text-red-500 text-sm text-center">{error}</div>
               )}
               <div className="flex flex-col gap-3">
                 <Button
@@ -103,13 +97,13 @@ export function LoginForm({ className, ...props }) {
                   className="w-full hover:cursor-pointer"
                   disabled={isPending}
                 >
-                  {isPending ? "Loading..." : "Login"}{" "}
+                  {isPending ? "Loading..." : "Login"}
                 </Button>
               </div>
             </div>
             <div className="mt-4 text-center text-sm">
               Belum punya akun?{" "}
-              <a href="/register" className="underline underline-offset-4">
+              <a href="/auth/register" className="underline underline-offset-4">
                 Daftar
               </a>
             </div>

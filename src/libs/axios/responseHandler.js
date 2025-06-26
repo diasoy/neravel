@@ -1,4 +1,3 @@
-import { AxiosError } from "axios";
 import { signOut } from "next-auth/react";
 
 const onErrorHander = (error) => {
