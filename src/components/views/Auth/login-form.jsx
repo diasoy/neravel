@@ -16,9 +16,11 @@ import {
 } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { LoadingSpinner } from "@/components/ui/loading";
+import { useToast } from "@/hooks/useToast";
 
 export default function LoginForm() {
   const router = useRouter();
+  const { auth, validation } = useToast();
 
   const [formData, setFormData] = useState({
     email: "",
@@ -30,6 +32,17 @@ export default function LoginForm() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
+
+    // Validation
+    if (!formData.email) {
+      validation.required("Email");
+      return;
+    }
+    if (!formData.password) {
+      validation.required("Password");
+      return;
+    }
+
     setIsLoading(true);
 
     try {
@@ -39,20 +52,22 @@ export default function LoginForm() {
         redirect: false,
       });
 
-      console.log("SignIn result:", result);
-
       if (result?.error) {
-        setError(`Login gagal: ${result.error}`);
+        setError(result.error);
+        auth.loginError(result.error);
       } else if (result?.ok) {
-        console.log("Login berhasil, redirecting to dashboard");
+        auth.loginSuccess();
         router.push("/dashboard");
         router.refresh();
       } else {
-        setError("Login gagal. Silakan coba lagi.");
+        const errorMsg = "Login gagal. Silakan coba lagi.";
+        setError(errorMsg);
+        auth.loginError(errorMsg);
       }
     } catch (error) {
-      console.error("Login error:", error);
-      setError("Terjadi kesalahan saat login");
+      const errorMsg = "Terjadi kesalahan saat login";
+      setError(errorMsg);
+      auth.loginError(errorMsg);
     } finally {
       setIsLoading(false);
     }

@@ -32,7 +32,6 @@ instance.interceptors.response.use(
       // Token expired atau invalid, redirect ke login
       window.location.href = "/auth/login";
     }
-    console.error("API Error:", error.response?.data || error.message);
     return Promise.reject(error);
   }
 );

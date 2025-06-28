@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import TitleContent from "@/components/dashboard/TitleContent";
 import { DataTable } from "@/components/ui/data-table";
 import { CategoryModal } from "@/components/views/Category/CategoryModal";
@@ -17,9 +17,10 @@ import {
 } from "@/components/ui/dialog";
 import useDebounce from "@/hooks/useDebounce";
 import categoriesService from "@/services/categories.service";
-import { toast } from "sonner";
+import { useToast } from "@/hooks/useToast";
 
 const CategoriesPage = ({ setTitleHeader }) => {
+  const { crud, loading } = useToast();
   const [categories, setCategories] = useState([]);
   const [pagination, setPagination] = useState({});
   const [isLoading, setIsLoading] = useState(true);
@@ -32,6 +33,10 @@ const CategoriesPage = ({ setTitleHeader }) => {
 
   // Detail view state
   const [viewCategory, setViewCategory] = useState(null);
+
+  // Refs untuk mencegah multiple calls
+  const isInitialMount = useRef(true);
+  const abortControllerRef = useRef(null);
 
   // Debounce search term dengan delay 1 detik
   const debouncedSearchTerm = useDebounce(searchTerm, 1000);
@@ -107,16 +112,26 @@ const CategoriesPage = ({ setTitleHeader }) => {
     },
   ];
 
-  // Load categories data
-  const loadCategories = async (page = 1, search = "") => {
+  // Load categories data dengan useCallback untuk mencegah re-creation
+  const loadCategories = useCallback(async (page = 1, search = "") => {
     try {
+      // Cancel previous request jika ada
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+
+      // Create new abort controller
+      abortControllerRef.current = new AbortController();
+
       setIsLoading(true);
       const params = {
         page,
         ...(search && { search }),
       };
 
-      const response = await categoriesService.getCategories(params);
+      const response = await categoriesService.getCategories(params, {
+        signal: abortControllerRef.current.signal,
+      });
 
       if (response.data.success) {
         setCategories(response.data.data.data);
@@ -130,131 +145,171 @@ const CategoriesPage = ({ setTitleHeader }) => {
         });
       }
     } catch (error) {
-      console.error("Error loading categories:", error);
-      toast.error("Gagal memuat data kategori");
+      // Handle canceled requests - tidak perlu menampilkan error
+      if (error.code === "ERR_CANCELED" || error.name === "CanceledError") {
+        return; // Exit gracefully tanpa toast error
+      }
+
+      // Handle real errors
+      loading.fetchError("Kategori");
     } finally {
       setIsLoading(false);
+      abortControllerRef.current = null;
     }
-  };
-
+  }, []);
   // Handle page change
-  const handlePageChange = (page) => {
-    loadCategories(page, debouncedSearchTerm);
-  };
+  const handlePageChange = useCallback(
+    (page) => {
+      loadCategories(page, debouncedSearchTerm);
+    },
+    [loadCategories, debouncedSearchTerm]
+  );
 
   // Handle search - hanya update state, tidak langsung fetch
-  const handleSearch = (search) => {
+  const handleSearch = useCallback((search) => {
     setSearchTerm(search);
-    // Tidak perlu memanggil loadCategories di sini karena akan dipanggil oleh useEffect
-  };
+  }, []);
 
   // Handle add category
-  const handleAddCategory = () => {
+  const handleAddCategory = useCallback(() => {
     setSelectedCategory(null);
     setIsModalOpen(true);
-  };
+  }, []);
 
   // Handle view category
-  const handleViewCategory = async (category) => {
+  const handleViewCategory = useCallback(async (category) => {
     try {
       const response = await categoriesService.getCategory(category.id);
       if (response.data.success) {
         setViewCategory(response.data.data);
       }
     } catch (error) {
-      console.error("Error fetching category:", error);
-      toast.error("Gagal memuat detail kategori");
+      loading.fetchError("Detail Kategori");
     }
-  };
+  }, []);
 
   // Handle edit category
-  const handleEditCategory = (category) => {
+  const handleEditCategory = useCallback((category) => {
     setSelectedCategory(category);
     setIsModalOpen(true);
-  };
+  }, []);
 
   // Handle delete category
-  const handleDeleteCategory = async (category) => {
-    if (
-      confirm(`Apakah Anda yakin ingin menghapus kategori "${category.name}"?`)
-    ) {
-      try {
-        await categoriesService.deleteCategory(category.id);
-        toast.success("Kategori berhasil dihapus");
-        loadCategories(pagination.current_page, debouncedSearchTerm);
-      } catch (error) {
-        console.error("Error deleting category:", error);
-        toast.error("Gagal menghapus kategori");
+  const handleDeleteCategory = useCallback(
+    async (category) => {
+      if (
+        confirm(
+          `Apakah Anda yakin ingin menghapus kategori "${category.name}"?`
+        )
+      ) {
+        try {
+          await categoriesService.deleteCategory(category.id);
+          crud.deleteSuccess("Kategori");
+          loadCategories(pagination.current_page, debouncedSearchTerm);
+        } catch (error) {
+          crud.deleteError("Kategori");
+        }
       }
-    }
-  };
+    },
+    [loadCategories, pagination.current_page, debouncedSearchTerm]
+  );
 
   // Handle restore category
-  const handleRestoreCategory = async (category) => {
-    try {
-      await categoriesService.restoreCategory(category.id);
-      toast.success("Kategori berhasil direstore");
-      loadCategories(pagination.current_page, debouncedSearchTerm);
-    } catch (error) {
-      console.error("Error restoring category:", error);
-      toast.error("Gagal restore kategori");
-    }
-  };
+  const handleRestoreCategory = useCallback(
+    async (category) => {
+      try {
+        await categoriesService.restoreCategory(category.id);
+        crud.restoreSuccess("Kategori");
+        loadCategories(pagination.current_page, debouncedSearchTerm);
+      } catch (error) {
+        crud.restoreError("Kategori");
+      }
+    },
+    [loadCategories, pagination.current_page, debouncedSearchTerm]
+  );
 
   // Handle toggle status
-  const handleToggleStatus = async (category) => {
-    try {
-      await categoriesService.toggleStatus(category.id);
-      toast.success(
-        `Status kategori berhasil ${
-          category.is_active ? "dinonaktifkan" : "diaktifkan"
-        }`
-      );
-      loadCategories(pagination.current_page, debouncedSearchTerm);
-    } catch (error) {
-      console.error("Error toggling status:", error);
-      toast.error("Gagal mengubah status kategori");
-    }
-  };
+  const handleToggleStatus = useCallback(
+    async (category) => {
+      try {
+        await categoriesService.toggleStatus(category.id);
+        if (category.is_active) {
+          status.deactivated("Kategori");
+        } else {
+          status.activated("Kategori");
+        }
+        loadCategories(pagination.current_page, debouncedSearchTerm);
+      } catch (error) {
+        status.statusChangeError("Kategori");
+      }
+    },
+    [loadCategories, pagination.current_page, debouncedSearchTerm]
+  );
 
   // Handle form submit
-  const handleFormSubmit = async (formData) => {
-    try {
-      setIsSubmitting(true);
+  const handleFormSubmit = useCallback(
+    async (formData) => {
+      try {
+        setIsSubmitting(true);
 
-      if (selectedCategory) {
-        // Update existing category
-        await categoriesService.updateCategory(selectedCategory.id, formData);
-        toast.success("Kategori berhasil diperbarui");
-      } else {
-        // Create new category
-        await categoriesService.createCategory(formData);
-        toast.success("Kategori berhasil dibuat");
+        if (selectedCategory) {
+          // Update existing category
+          await categoriesService.updateCategory(selectedCategory.id, formData);
+          crud.updateSuccess("Kategori");
+        } else {
+          // Create new category
+          await categoriesService.createCategory(formData);
+          crud.createSuccess("Kategori");
+        }
+
+        setIsModalOpen(false);
+        loadCategories(pagination.current_page, debouncedSearchTerm);
+      } catch (error) {
+        if (selectedCategory) {
+          crud.updateError("Kategori");
+        } else {
+          crud.createError("Kategori");
+        }
+      } finally {
+        setIsSubmitting(false);
       }
+    },
+    [
+      selectedCategory,
+      loadCategories,
+      pagination.current_page,
+      debouncedSearchTerm,
+    ]
+  );
 
-      setIsModalOpen(false);
-      loadCategories(pagination.current_page, debouncedSearchTerm);
-    } catch (error) {
-      console.error("Error submitting form:", error);
-      toast.error(
-        selectedCategory
-          ? "Gagal memperbarui kategori"
-          : "Gagal membuat kategori"
-      );
-    } finally {
-      setIsSubmitting(false);
+  // Effect untuk initial load - hanya sekali saat component mount
+  useEffect(() => {
+    if (isInitialMount.current) {
+      loadCategories();
+      isInitialMount.current = false;
     }
-  };
+  }, [loadCategories]);
 
-  // Effect untuk handle debounced search
+  // Effect untuk handle debounced search - skip pada initial mount
   useEffect(() => {
-    // Load data dengan debounced search term, reset ke halaman 1
-    loadCategories(1, debouncedSearchTerm);
-  }, [debouncedSearchTerm]);
+    // Skip jika masih initial mount atau search term kosong pada load pertama
+    if (isInitialMount.current) {
+      return;
+    }
 
-  // Load data on component mount
+    // Hanya fetch jika sudah ada perubahan search term setelah initial mount
+    if (debouncedSearchTerm !== undefined) {
+      loadCategories(1, debouncedSearchTerm);
+    }
+  }, [debouncedSearchTerm, loadCategories]);
+
+  // Cleanup function untuk cancel pending requests
   useEffect(() => {
-    loadCategories();
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
   }, []);
 
   return (
@@ -281,7 +336,7 @@ const CategoriesPage = ({ setTitleHeader }) => {
         onToggleStatus={handleToggleStatus}
         searchPlaceholder="Cari nama kategori..."
         addButtonText="Tambah Kategori"
-        searchValue={searchTerm} // Pass current search value
+        searchValue={searchTerm}
       />
 
       {/* Add/Edit Modal */}

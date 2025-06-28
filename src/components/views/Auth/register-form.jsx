@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -12,6 +13,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useToast } from "@/hooks/useToast";
 import authServices from "@/services/auth.service";
 
 export function RegisterForm({ className, ...props }) {
@@ -19,12 +21,11 @@ export function RegisterForm({ className, ...props }) {
     name: "",
     email: "",
     password: "",
-    confirmPassword: "",
+    password_confirmation: "",
   });
   const [isPending, setIsPending] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
   const router = useRouter();
+  const { auth, validation } = useToast();
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -37,17 +38,30 @@ export function RegisterForm({ className, ...props }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsPending(true);
-    setError("");
-    setSuccess("");
 
-    if (formData.password !== formData.confirmPassword) {
-      setError("Password dan konfirmasi password tidak cocok");
+    // Validation with toast
+    if (!formData.name) {
+      validation.required("Nama");
       setIsPending(false);
       return;
     }
-
+    if (!formData.email) {
+      validation.required("Email");
+      setIsPending(false);
+      return;
+    }
+    if (!formData.password) {
+      validation.required("Password");
+      setIsPending(false);
+      return;
+    }
     if (formData.password.length < 8) {
-      setError("Password minimal 8 karakter");
+      validation.tooShort("Password", 8);
+      setIsPending(false);
+      return;
+    }
+    if (formData.password !== formData.password_confirmation) {
+      validation.mismatch("Konfirmasi Password");
       setIsPending(false);
       return;
     }
@@ -57,20 +71,19 @@ export function RegisterForm({ className, ...props }) {
         name: formData.name,
         email: formData.email,
         password: formData.password,
-        password_confirmation: formData.confirmPassword,
+        password_confirmation: formData.password_confirmation,
       });
 
-      setSuccess("Registrasi berhasil! Silakan login.");
+      auth.registerSuccess();
       setTimeout(() => {
         router.push("/auth/login");
       }, 2000);
     } catch (err) {
-      console.error("Register error:", err);
       const errorMessage =
         err.response?.data?.message ||
         err.message ||
         "Terjadi kesalahan saat registrasi";
-      setError(errorMessage);
+      auth.registerError(errorMessage);
     } finally {
       setIsPending(false);
     }

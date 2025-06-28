@@ -14,6 +14,7 @@ import {
   FileText,
   LogOut,
   X,
+  Bell,
 } from "lucide-react";
 
 const navigation = [
@@ -22,6 +23,7 @@ const navigation = [
   { name: "Users", href: "/dashboard/users", icon: Users },
   { name: "Reports", href: "/dashboard/reports", icon: FileText },
   { name: "Settings", href: "/dashboard/settings", icon: Settings },
+  // { name: "Toast Demo", href: "/dashboard/toast-demo", icon: Bell },
 ];
 
 export function Sidebar({ onClose, isMobile = false }) {
