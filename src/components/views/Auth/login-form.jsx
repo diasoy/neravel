@@ -46,7 +46,7 @@ export default function LoginForm() {
       } else if (result?.ok) {
         console.log("Login berhasil, redirecting to dashboard");
         router.push("/dashboard");
-        router.refresh(); // Refresh untuk memastikan session terupdate
+        router.refresh();
       } else {
         setError("Login gagal. Silakan coba lagi.");
       }

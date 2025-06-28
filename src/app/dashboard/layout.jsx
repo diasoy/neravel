@@ -7,21 +7,24 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 
 export default function DashboardLayout({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [isAnimating, setIsAnimating] = useState(false);
   const [titleHeader, setTitleHeader] = useState("Dashboard");
+  const [isAnimating, setIsAnimating] = useState(false);
 
   const closeSidebar = () => {
+    if (isAnimating) return;
     setIsAnimating(true);
     setSidebarOpen(false);
     setTimeout(() => setIsAnimating(false), 300);
   };
 
   const openSidebar = () => {
-    setSidebarOpen(true);
+    if (isAnimating) return;
     setIsAnimating(true);
+    setSidebarOpen(true);
     setTimeout(() => setIsAnimating(false), 300);
   };
 
+  // Handle escape key dan prevent body scroll saat sidebar terbuka
   useEffect(() => {
     const handleEscapeKey = (event) => {
       if (event.key === "Escape" && sidebarOpen) {
@@ -31,47 +34,59 @@ export default function DashboardLayout({ children }) {
 
     if (sidebarOpen) {
       document.addEventListener("keydown", handleEscapeKey);
-      document.body.style.overflow = "hidden";
+      document.body.classList.add("mobile-menu-open");
     } else {
-      document.body.style.overflow = "unset";
+      document.body.classList.remove("mobile-menu-open");
     }
 
     return () => {
       document.removeEventListener("keydown", handleEscapeKey);
-      document.body.style.overflow = "unset";
+      document.body.classList.remove("mobile-menu-open");
     };
   }, [sidebarOpen]);
 
   return (
     <ProtectedRoute>
-      <div className="flex h-screen bg-gray-50">
-        {/* Sidebar for desktop */}
-        <div className="hidden lg:flex lg:w-1/5 lg:flex-col">
+      <div className="flex h-screen bg-gray-50 overflow-hidden">
+        {/* Desktop Sidebar - Selalu terlihat */}
+        <div className="hidden lg:flex lg:w-64 lg:flex-col lg:fixed lg:inset-y-0 lg:z-40">
           <Sidebar />
         </div>
 
-        {/* Mobile sidebar overlay */}
-        {sidebarOpen && (
-          <div className="lg:hidden fixed inset-0 z-50 flex">
-            <div
-              className="fixed inset-0 bg-gray-600 bg-opacity-75 transition-opacity"
-              onClick={closeSidebar}
-            />
-            <div className="relative flex flex-col w-64 bg-white">
-              <Sidebar isMobile={true} onClose={closeSidebar} />
-            </div>
+        {/* Mobile Sidebar Container */}
+        <div
+          className={`lg:hidden fixed inset-0 z-50 ${
+            sidebarOpen || isAnimating
+              ? "pointer-events-auto"
+              : "pointer-events-none"
+          }`}
+        >
+          {/* Backdrop Overlay */}
+          <div
+            className={`backdrop ${sidebarOpen ? "open" : "closed"}`}
+            onClick={closeSidebar}
+          />
+
+          {/* Sidebar Panel */}
+          <div className={`sidebar-mobile ${sidebarOpen ? "open" : "closed"}`}>
+            <Sidebar isMobile={true} onClose={closeSidebar} />
           </div>
-        )}
+        </div>
 
         {/* Main content area */}
-        <div className="flex-1 lg:w-4/5 flex flex-col overflow-hidden">
-          <Header onMenuClick={openSidebar} />
+        <div className="flex-1 flex flex-col lg:ml-64 min-w-0 relative">
+          <Header onMenuClick={openSidebar} titleHeader={titleHeader} />
 
-          <main className="flex-1 overflow-y-auto p-4 lg:p-6">
-            {/* Clone children dan pass setTitleHeader sebagai prop */}
-            {React.isValidElement(children)
-              ? React.cloneElement(children)
-              : children}
+          {/* Main content dengan proper overflow handling */}
+          <main className="flex-1 overflow-y-auto custom-scrollbar">
+            <div className="p-4 lg:p-6">
+              <div className="max-w-full">
+                {/* Clone children dan pass setTitleHeader sebagai prop */}
+                {React.isValidElement(children)
+                  ? React.cloneElement(children, { setTitleHeader })
+                  : children}
+              </div>
+            </div>
           </main>
         </div>
       </div>

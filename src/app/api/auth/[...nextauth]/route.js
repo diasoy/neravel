@@ -16,7 +16,6 @@ const authOptions = {
           }
 
           const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/auth/login`;
-          console.log("Attempting login to:", apiUrl);
 
           const response = await fetch(apiUrl, {
             method: "POST",
@@ -31,11 +30,8 @@ const authOptions = {
           });
 
           const data = await response.json();
-          console.log("Response status:", response.status);
-          console.log("Response data:", data);
 
           if (!response.ok) {
-            console.error("Login failed:", data);
             throw new Error(data.message || "Login gagal");
           }
 
@@ -57,10 +53,8 @@ const authOptions = {
             };
           }
 
-          console.error("Unexpected response structure:", data);
           throw new Error("Format response tidak valid");
         } catch (error) {
-          console.error("Login error:", error);
           throw new Error(error.message || "Terjadi kesalahan saat login");
         }
       },

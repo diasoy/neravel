@@ -15,14 +15,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { useTitleHeader } from "@/hooks/useTitleHeader";
 import useDebounce from "@/hooks/useDebounce";
 import categoriesService from "@/services/categories.service";
 import { toast } from "sonner";
 
 const CategoriesPage = ({ setTitleHeader }) => {
-  useTitleHeader("Categories", setTitleHeader);
-
   const [categories, setCategories] = useState([]);
   const [pagination, setPagination] = useState({});
   const [isLoading, setIsLoading] = useState(true);
@@ -312,11 +309,6 @@ const CategoriesPage = ({ setTitleHeader }) => {
 
             <div className="space-y-4">
               <div>
-                <Label className="text-sm font-semibold">ID</Label>
-                <p className="text-sm text-gray-600">#{viewCategory.id}</p>
-              </div>
-
-              <div>
                 <Label className="text-sm font-semibold">Nama Kategori</Label>
                 <p className="text-sm text-gray-600">{viewCategory.name}</p>
               </div>
@@ -343,7 +335,16 @@ const CategoriesPage = ({ setTitleHeader }) => {
                 <div>
                   <Label className="text-sm font-semibold">Dibuat</Label>
                   <p className="text-sm text-gray-600">
-                    {new Date(viewCategory.created_at).toLocaleString("id-ID")}
+                    {new Date(viewCategory.created_at).toLocaleDateString(
+                      "id-ID"
+                    )}{" "}
+                    {new Date(viewCategory.created_at)
+                      .toLocaleTimeString("id-ID", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        hour12: false,
+                      })
+                      .replace(".", ":")}
                   </p>
                 </div>
 
@@ -352,7 +353,16 @@ const CategoriesPage = ({ setTitleHeader }) => {
                     Terakhir Update
                   </Label>
                   <p className="text-sm text-gray-600">
-                    {new Date(viewCategory.updated_at).toLocaleString("id-ID")}
+                    {new Date(viewCategory.updated_at).toLocaleDateString(
+                      "id-ID"
+                    )}{" "}
+                    {new Date(viewCategory.updated_at)
+                      .toLocaleTimeString("id-ID", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        hour12: false,
+                      })
+                      .replace(".", ":")}
                   </p>
                 </div>
               </div>
