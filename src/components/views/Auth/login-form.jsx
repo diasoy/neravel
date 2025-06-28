@@ -1,10 +1,12 @@
 "use client";
 
-import React, { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { signIn } from "next-auth/react";
-import { cn } from "@/libs/utils";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Card,
   CardContent,
@@ -12,104 +14,131 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { LoadingSpinner } from "@/components/ui/loading";
 
-export function LoginForm({ className, ...props }) {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [isPending, setIsPending] = useState(false);
-  const [error, setError] = useState("");
+export default function LoginForm() {
   const router = useRouter();
+
+  const [formData, setFormData] = useState({
+    email: "",
+    password: "",
+  });
+  const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setIsPending(true);
     setError("");
+    setIsLoading(true);
 
     try {
       const result = await signIn("credentials", {
-        email,
-        password,
+        email: formData.email,
+        password: formData.password,
         redirect: false,
-        callbackUrl: "/dashboard",
       });
 
+      console.log("SignIn result:", result);
+
       if (result?.error) {
-        setError("Email atau password salah");
+        setError(`Login gagal: ${result.error}`);
       } else if (result?.ok) {
-        // Redirect ke dashboard setelah login berhasil
+        console.log("Login berhasil, redirecting to dashboard");
         router.push("/dashboard");
-        router.refresh();
+        router.refresh(); // Refresh untuk memastikan session terupdate
+      } else {
+        setError("Login gagal. Silakan coba lagi.");
       }
-    } catch (err) {
-      console.error("Login error:", err);
+    } catch (error) {
+      console.error("Login error:", error);
       setError("Terjadi kesalahan saat login");
     } finally {
-      setIsPending(false);
+      setIsLoading(false);
     }
   };
 
+  const handleChange = (e) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value,
+    });
+  };
+
   return (
-    <div className={cn("flex flex-col gap-6", className)} {...props}>
-      <Card>
-        <CardHeader>
-          <CardTitle>Login ke Akun Anda</CardTitle>
-          <CardDescription>
-            Masukkan email Anda di bawah untuk masuk ke akun Anda
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit}>
-            <div className="flex flex-col gap-6">
-              <div className="grid gap-3">
+    <div className="flex min-h-screen items-center justify-center bg-gray-50 px-6 py-12">
+      <div className="w-full max-w-md">
+        <Card>
+          <CardHeader className="space-y-1">
+            <CardTitle className="text-2xl font-bold text-center">
+              Masuk ke Akun Anda
+            </CardTitle>
+            <CardDescription className="text-center">
+              Masukkan email dan password untuk melanjutkan
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {error && (
+                <Alert variant="destructive">
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              )}
+
+              <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
                 <Input
                   id="email"
+                  name="email"
                   type="email"
-                  placeholder="email@example.com"
+                  placeholder="nama@email.com"
+                  value={formData.email}
+                  onChange={handleChange}
                   required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  disabled={isPending}
+                  disabled={isLoading}
                 />
               </div>
-              <div className="grid gap-3">
-                <div className="flex items-center">
-                  <Label htmlFor="password">Password</Label>
-                </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="password">Password</Label>
                 <Input
                   id="password"
+                  name="password"
                   type="password"
-                  placeholder="********"
+                  placeholder="Masukkan password"
+                  value={formData.password}
+                  onChange={handleChange}
                   required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  disabled={isPending}
+                  disabled={isLoading}
                 />
               </div>
-              {error && (
-                <div className="text-red-500 text-sm text-center">{error}</div>
-              )}
-              <div className="flex flex-col gap-3">
-                <Button
-                  type="submit"
-                  className="w-full hover:cursor-pointer"
-                  disabled={isPending}
+
+              <Button type="submit" className="w-full" disabled={isLoading}>
+                {isLoading ? (
+                  <div className="flex items-center space-x-2">
+                    <LoadingSpinner size="small" text="" />
+                    <span>Masuk...</span>
+                  </div>
+                ) : (
+                  "Masuk"
+                )}
+              </Button>
+            </form>
+
+            <div className="mt-6 text-center">
+              <p className="text-sm text-gray-600">
+                Belum punya akun?{" "}
+                <Link
+                  href="/auth/register"
+                  className="font-medium text-blue-600 hover:text-blue-500"
                 >
-                  {isPending ? "Loading..." : "Login"}
-                </Button>
-              </div>
+                  Daftar sekarang
+                </Link>
+              </p>
             </div>
-            <div className="mt-4 text-center text-sm">
-              Belum punya akun?{" "}
-              <a href="/auth/register" className="underline underline-offset-4">
-                Daftar
-              </a>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

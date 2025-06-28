@@ -22,16 +22,10 @@ export function Header({ onMenuClick }) {
           >
             <Menu className="h-5 w-5" />
           </Button>
-
-          <div className="block">
-            <h1 className="text-lg lg:text-xl font-semibold text-gray-900">
-              Dashboard
-            </h1>
-          </div>
         </div>
 
         {/* Center - Search (hidden on small screens) */}
-        <div className="hidden md:block flex-1 max-w-md mx-8">
+        <div className="block flex-1 w-full mr-8">
           <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <Search className="h-4 w-4 text-gray-400" />

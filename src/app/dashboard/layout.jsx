@@ -8,11 +8,11 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 export default function DashboardLayout({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
+  const [titleHeader, setTitleHeader] = useState("Dashboard");
 
   const closeSidebar = () => {
     setIsAnimating(true);
     setSidebarOpen(false);
-    // Reset animation state after transition completes
     setTimeout(() => setIsAnimating(false), 300);
   };
 
@@ -22,7 +22,6 @@ export default function DashboardLayout({ children }) {
     setTimeout(() => setIsAnimating(false), 300);
   };
 
-  // Close sidebar on escape key
   useEffect(() => {
     const handleEscapeKey = (event) => {
       if (event.key === "Escape" && sidebarOpen) {
@@ -32,7 +31,6 @@ export default function DashboardLayout({ children }) {
 
     if (sidebarOpen) {
       document.addEventListener("keydown", handleEscapeKey);
-      // Prevent body scrolling when sidebar is open
       document.body.style.overflow = "hidden";
     } else {
       document.body.style.overflow = "unset";
@@ -46,44 +44,34 @@ export default function DashboardLayout({ children }) {
 
   return (
     <ProtectedRoute>
-      <div className="flex h-screen bg-gray-50 relative">
-        {/* Desktop Sidebar */}
-        <div className="hidden lg:block lg:w-1/5 lg:flex-shrink-0">
-          <Sidebar isOpen={true} onClose={() => {}} />
+      <div className="flex h-screen bg-gray-50">
+        {/* Sidebar for desktop */}
+        <div className="hidden lg:flex lg:w-1/5 lg:flex-col">
+          <Sidebar />
         </div>
 
-        {/* Mobile Sidebar Overlay */}
-        {(sidebarOpen || isAnimating) && (
-          <div className="lg:hidden fixed inset-0 z-40 flex">
-            {/* Background overlay with fade and blur transition */}
+        {/* Mobile sidebar overlay */}
+        {sidebarOpen && (
+          <div className="lg:hidden fixed inset-0 z-50 flex">
             <div
-              className={`fixed inset-0 bg-black backdrop-blur-sm transition-all duration-300 ease-in-out ${
-                sidebarOpen ? "opacity-50" : "opacity-0"
-              }`}
+              className="fixed inset-0 bg-gray-600 bg-opacity-75 transition-opacity"
               onClick={closeSidebar}
-              aria-hidden="true"
             />
-
-            {/* Sidebar with slide transition and shadow */}
-            <div
-              className={`relative flex flex-col w-64 bg-white shadow-2xl transform transition-transform duration-300 ease-in-out z-50 ${
-                sidebarOpen ? "translate-x-0" : "-translate-x-full"
-              }`}
-            >
-              <Sidebar
-                isOpen={sidebarOpen}
-                onClose={closeSidebar}
-                isMobile={true}
-              />
+            <div className="relative flex flex-col w-64 bg-white">
+              <Sidebar isMobile={true} onClose={closeSidebar} />
             </div>
           </div>
         )}
 
-        {/* Main Content Area */}
+        {/* Main content area */}
         <div className="flex-1 lg:w-4/5 flex flex-col overflow-hidden">
           <Header onMenuClick={openSidebar} />
-          <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-50 p-4 lg:p-6">
-            <div className="max-w-full">{children}</div>
+
+          <main className="flex-1 overflow-y-auto p-4 lg:p-6">
+            {/* Clone children dan pass setTitleHeader sebagai prop */}
+            {React.isValidElement(children)
+              ? React.cloneElement(children)
+              : children}
           </main>
         </div>
       </div>

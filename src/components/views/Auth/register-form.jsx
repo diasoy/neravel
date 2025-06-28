@@ -41,7 +41,6 @@ export function RegisterForm({ className, ...props }) {
     setError("");
     setSuccess("");
 
-    // Validation
     if (formData.password !== formData.confirmPassword) {
       setError("Password dan konfirmasi password tidak cocok");
       setIsPending(false);

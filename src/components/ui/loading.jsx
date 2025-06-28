@@ -12,11 +12,11 @@ export function LoadingSpinner({
   };
 
   return (
-    <div className={cn("flex items-center justify-center", className)}>
+    <div className={cn("flex w-full h-screen items-center justify-center", className)}>
       <div className="flex flex-col items-center space-y-2">
         <div
           className={cn(
-            "border-2 border-gray-200 border-t-blue-600 rounded-full animate-spin",
+            "border-2 border-gray-200 border-t-accent-foreground rounded-full animate-spin",
             sizeClasses[size]
           )}
         />

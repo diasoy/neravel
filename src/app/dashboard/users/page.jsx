@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import { useState } from "react";
 import {
   Card,
   CardContent,
@@ -10,78 +10,83 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, Plus, Filter } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Search, UserPlus, MoreHorizontal } from "lucide-react";
 
 export default function UsersPage() {
+  const [searchTerm, setSearchTerm] = useState("");
+
   const users = [
     {
       id: 1,
-      name: "John Doe",
-      email: "john@example.com",
+      name: "Dias Norman",
+      email: "diassnorrman@gmail.com",
       role: "Admin",
       status: "Active",
-      lastLogin: "2 hours ago",
+      lastLogin: "2 jam yang lalu",
     },
     {
       id: 2,
-      name: "Jane Smith",
-      email: "jane@example.com",
+      name: "John Doe",
+      email: "john@example.com",
       role: "User",
       status: "Active",
-      lastLogin: "1 day ago",
+      lastLogin: "1 hari yang lalu",
     },
     {
       id: 3,
-      name: "Bob Johnson",
-      email: "bob@example.com",
-      role: "Editor",
+      name: "Jane Smith",
+      email: "jane@example.com",
+      role: "User",
       status: "Inactive",
-      lastLogin: "1 week ago",
+      lastLogin: "1 minggu yang lalu",
     },
     {
       id: 4,
-      name: "Alice Brown",
-      email: "alice@example.com",
-      role: "User",
+      name: "Bob Johnson",
+      email: "bob@example.com",
+      role: "Moderator",
       status: "Active",
-      lastLogin: "3 hours ago",
-    },
-    {
-      id: 5,
-      name: "Charlie Wilson",
-      email: "charlie@example.com",
-      role: "Admin",
-      status: "Active",
-      lastLogin: "5 minutes ago",
+      lastLogin: "3 hari yang lalu",
     },
   ];
 
+  const filteredUsers = users.filter(
+    (user) =>
+      user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.email.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Users</h1>
-          <p className="text-gray-600">Kelola pengguna dan hak akses mereka.</p>
+          <h1 className="text-3xl font-bold text-gray-900">User Management</h1>
+          <p className="text-gray-600">Kelola pengguna dan hak akses sistem</p>
         </div>
-        <Button className="mt-4 sm:mt-0">
-          <Plus className="w-4 h-4 mr-2" />
-          Add User
+        <Button className="sm:w-auto">
+          <UserPlus className="h-4 w-4 mr-2" />
+          Tambah User
         </Button>
       </div>
 
       {/* Search and Filter */}
       <Card>
-        <CardContent className="p-6">
+        <CardHeader>
+          <CardTitle>Filter Users</CardTitle>
+        </CardHeader>
+        <CardContent>
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-              <Input placeholder="Search users..." className="pl-10" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+              <Input
+                placeholder="Cari nama atau email..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
             </div>
-            <Button variant="outline">
-              <Filter className="w-4 h-4 mr-2" />
-              Filter
-            </Button>
+            <Button variant="outline">Filter</Button>
           </div>
         </CardContent>
       </Card>
@@ -89,9 +94,9 @@ export default function UsersPage() {
       {/* Users Table */}
       <Card>
         <CardHeader>
-          <CardTitle>All Users</CardTitle>
+          <CardTitle>Daftar Users ({filteredUsers.length})</CardTitle>
           <CardDescription>
-            Daftar semua pengguna yang terdaftar di sistem.
+            Semua pengguna yang terdaftar di sistem
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -99,72 +104,51 @@ export default function UsersPage() {
             <table className="w-full">
               <thead>
                 <tr className="border-b">
-                  <th className="text-left py-3 px-4 font-medium text-gray-900">
-                    Name
-                  </th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-900">
-                    Role
-                  </th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-900">
-                    Status
-                  </th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-900">
+                  <th className="text-left py-3 px-4 font-semibold">User</th>
+                  <th className="text-left py-3 px-4 font-semibold">Role</th>
+                  <th className="text-left py-3 px-4 font-semibold">Status</th>
+                  <th className="text-left py-3 px-4 font-semibold">
                     Last Login
                   </th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-900">
-                    Actions
-                  </th>
+                  <th className="text-left py-3 px-4 font-semibold">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {users.map((user) => (
+                {filteredUsers.map((user) => (
                   <tr key={user.id} className="border-b hover:bg-gray-50">
-                    <td className="py-4 px-4">
+                    <td className="py-3 px-4">
                       <div>
-                        <div className="font-medium text-gray-900">
-                          {user.name}
-                        </div>
+                        <div className="font-medium">{user.name}</div>
                         <div className="text-sm text-gray-500">
                           {user.email}
                         </div>
                       </div>
                     </td>
-                    <td className="py-4 px-4">
-                      <span
-                        className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                          user.role === "Admin"
-                            ? "bg-purple-100 text-purple-800"
-                            : user.role === "Editor"
-                            ? "bg-blue-100 text-blue-800"
-                            : "bg-gray-100 text-gray-800"
-                        }`}
+                    <td className="py-3 px-4">
+                      <Badge
+                        variant={
+                          user.role === "Admin" ? "default" : "secondary"
+                        }
                       >
                         {user.role}
-                      </span>
+                      </Badge>
                     </td>
-                    <td className="py-4 px-4">
-                      <span
-                        className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                          user.status === "Active"
-                            ? "bg-green-100 text-green-800"
-                            : "bg-red-100 text-red-800"
-                        }`}
+                    <td className="py-3 px-4">
+                      <Badge
+                        variant={
+                          user.status === "Active" ? "success" : "destructive"
+                        }
                       >
                         {user.status}
-                      </span>
+                      </Badge>
                     </td>
-                    <td className="py-4 px-4 text-sm text-gray-500">
+                    <td className="py-3 px-4 text-sm text-gray-500">
                       {user.lastLogin}
                     </td>
-                    <td className="py-4 px-4">
-                      <div className="flex space-x-2">
-                        <Button variant="outline" size="sm">
-                          Edit
-                        </Button>
-                        <Button variant="outline" size="sm">
-                          Delete
-                        </Button>
-                      </div>
+                    <td className="py-3 px-4">
+                      <Button variant="ghost" size="sm">
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
                     </td>
                   </tr>
                 ))}

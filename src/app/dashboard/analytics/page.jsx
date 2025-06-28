@@ -1,6 +1,5 @@
-"use client";
 
-import React from "react";
+import TitleContent from "@/components/dashboard/TitleContent";
 import {
   Card,
   CardContent,
@@ -8,136 +7,100 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { BarChart3, TrendingUp, TrendingDown, Activity } from "lucide-react";
 
 export default function AnalyticsPage() {
-  const metrics = [
-    {
-      title: "Page Views",
-      value: "45,321",
-      change: "+12.5%",
-      trend: "up",
-      icon: Activity,
-    },
-    {
-      title: "Unique Visitors",
-      value: "12,854",
-      change: "+8.2%",
-      trend: "up",
-      icon: TrendingUp,
-    },
-    {
-      title: "Bounce Rate",
-      value: "24.8%",
-      change: "-3.1%",
-      trend: "down",
-      icon: TrendingDown,
-    },
-    {
-      title: "Conversion Rate",
-      value: "3.24%",
-      change: "+0.8%",
-      trend: "up",
-      icon: BarChart3,
-    },
-  ];
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Analytics</h1>
-        <p className="text-gray-600">
-          Monitor performa dan aktivitas website Anda.
-        </p>
-      </div>
+      <TitleContent
+        title="Analytics & Reports"
+        description="Analisis performa dan laporan website Anda"
+      />
 
-      {/* Metrics Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {metrics.map((metric, index) => {
-          const Icon = metric.icon;
-          const isPositive = metric.trend === "up";
-
-          return (
-            <Card key={index}>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">
-                      {metric.title}
-                    </p>
-                    <p className="text-2xl font-bold text-gray-900">
-                      {metric.value}
-                    </p>
-                    <p
-                      className={`text-sm ${
-                        isPositive ? "text-green-600" : "text-red-600"
-                      }`}
-                    >
-                      {metric.change} dari minggu lalu
-                    </p>
-                  </div>
-                  <div className="p-3 rounded-full bg-gray-50">
-                    <Icon className="h-6 w-6 text-blue-600" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
-
-      {/* Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* Metrics Overview */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card>
           <CardHeader>
-            <CardTitle>Traffic Overview</CardTitle>
-            <CardDescription>
-              Ringkasan traffic 30 hari terakhir
-            </CardDescription>
+            <CardTitle>Total Visitors</CardTitle>
+            <CardDescription>Pengunjung dalam 30 hari terakhir</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="h-64 flex items-center justify-center bg-gray-50 rounded-lg">
-              <p className="text-gray-500">Chart Placeholder</p>
-            </div>
+            <div className="text-3xl font-bold">45,231</div>
+            <p className="text-sm text-green-600">+12.5% dari bulan lalu</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle>Top Pages</CardTitle>
+            <CardTitle>Page Views</CardTitle>
+            <CardDescription>Total halaman dilihat</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold">156,789</div>
+            <p className="text-sm text-green-600">+8.2% dari bulan lalu</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Bounce Rate</CardTitle>
             <CardDescription>
-              Halaman yang paling banyak dikunjungi
+              Persentase pengunjung yang langsung pergi
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {[
-                { page: "/dashboard", views: "8,432", percentage: "28%" },
-                { page: "/analytics", views: "5,621", percentage: "19%" },
-                { page: "/users", views: "4,893", percentage: "16%" },
-                { page: "/reports", views: "3,245", percentage: "11%" },
-                { page: "/settings", views: "2,876", percentage: "10%" },
-              ].map((item, index) => (
-                <div
-                  key={index}
-                  className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+            <div className="text-3xl font-bold">24.5%</div>
+            <p className="text-sm text-red-600">+2.1% dari bulan lalu</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Chart Placeholder */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Traffic Overview</CardTitle>
+          <CardDescription>Grafik pengunjung website</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="h-80 bg-gray-100 rounded-lg flex items-center justify-center">
+            <p className="text-gray-500">Chart akan ditampilkan di sini</p>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Top Pages */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Top Pages</CardTitle>
+          <CardDescription>Halaman dengan traffic tertinggi</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {[
+              { page: "/dashboard", views: 12453, change: "+15%" },
+              { page: "/analytics", views: 8932, change: "+8%" },
+              { page: "/users", views: 6721, change: "+12%" },
+              { page: "/settings", views: 4567, change: "-2%" },
+            ].map((item, index) => (
+              <div key={index} className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium">{item.page}</p>
+                  <p className="text-sm text-gray-500">{item.views} views</p>
+                </div>
+                <span
+                  className={`text-sm ${
+                    item.change.startsWith("+")
+                      ? "text-green-600"
+                      : "text-red-600"
+                  }`}
                 >
-                  <div>
-                    <p className="font-medium text-gray-900">{item.page}</p>
-                    <p className="text-sm text-gray-500">{item.views} views</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-medium text-blue-600">
-                      {item.percentage}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+                  {item.change}
+                </span>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

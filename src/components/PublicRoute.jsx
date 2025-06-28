@@ -1,34 +1,26 @@
 "use client";
 
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { useAuth } from "@/hooks/useAuth";
-import { PageLoader } from "@/components/ui/loading";
+import { LoadingSpinner } from "@/components/ui/loading";
 
-export function PublicRoute({ children, redirectIfAuthenticated = true }) {
-  const { isAuthenticated, isLoading, redirectToDashboard } = useAuth();
+export function PublicRoute({ children }) {
+  const { data: session, status } = useSession();
+  const router = useRouter();
 
   useEffect(() => {
-    if (!isLoading && isAuthenticated && redirectIfAuthenticated) {
-      redirectToDashboard();
+    if (status === "authenticated" && session) {
+      router.replace("/dashboard");
     }
-  }, [
-    isAuthenticated,
-    isLoading,
-    redirectToDashboard,
-    redirectIfAuthenticated,
-  ]);
+  }, [status, session, router]);
 
-  if (isLoading) {
-    return (
-      <PageLoader
-        text="Memeriksa status login..."
-        subtitle="Mohon tunggu sebentar"
-      />
-    );
+  if (status === "loading") {
+    return <LoadingSpinner text="Memuat..." />;
   }
 
-  if (isAuthenticated && redirectIfAuthenticated) {
-    return null; 
+  if (status === "authenticated" && session) {
+    return <LoadingSpinner text="Mengalihkan ke dashboard..." />;
   }
 
   return children;

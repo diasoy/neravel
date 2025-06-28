@@ -10,7 +10,7 @@ import {
   Home,
   Users,
   Settings,
-  BarChart3,
+  ChartBarStacked,
   FileText,
   LogOut,
   X,
@@ -18,7 +18,7 @@ import {
 
 const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: Home },
-  { name: "Analytics", href: "/dashboard/analytics", icon: BarChart3 },
+  { name: "Categories", href: "/dashboard/categories", icon: ChartBarStacked },
   { name: "Users", href: "/dashboard/users", icon: Users },
   { name: "Reports", href: "/dashboard/reports", icon: FileText },
   { name: "Settings", href: "/dashboard/settings", icon: Settings },

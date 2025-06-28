@@ -1,30 +1,44 @@
 "use client";
 
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { useAuth } from "@/hooks/useAuth";
-import { PageLoader } from "@/components/ui/loading";
+import { LoadingSpinner } from "@/components/ui/loading";
 
 export function ProtectedRoute({ children }) {
-  const { isAuthenticated, isLoading, redirectToLogin } = useAuth();
+  const { data: session, status } = useSession();
+  const router = useRouter();
 
   useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
-      redirectToLogin();
-    }
-  }, [isAuthenticated, isLoading, redirectToLogin]);
+    if (status === "loading") return;
 
-  if (isLoading) {
+    if (status === "unauthenticated") {
+      router.replace("/auth/login");
+      return;
+    }
+  }, [status, router]);
+
+  if (status === "loading") {
     return (
-      <PageLoader
-        text="Memverifikasi akses..."
+      <LoadingSpinner
+        text="Memuat halaman..."
         subtitle="Mohon tunggu sebentar"
       />
     );
   }
 
-  if (!isAuthenticated) {
-    return null;
+  if (status === "unauthenticated") {
+    return (
+      <LoadingSpinner
+        text="Mengalihkan ke halaman login..."
+        subtitle="Anda akan dialihkan secara otomatis"
+      />
+    );
   }
 
-  return children;
+  if (status === "authenticated" && session) {
+    return children;
+  }
+
+  return <LoadingSpinner text="Memuat..." />;
 }

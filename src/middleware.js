@@ -3,18 +3,19 @@ import { NextResponse } from "next/server";
 
 export default withAuth(
   function middleware(req) {
-    const token = req.nextauth.token;
     const { pathname } = req.nextUrl;
+    const token = req.nextauth.token;
 
     // Jika user sudah login dan mencoba akses halaman auth, redirect ke dashboard
-    if (
-      token &&
-      (pathname === "/auth/login" || pathname === "/auth/register")
-    ) {
+    if (token && pathname.startsWith("/auth")) {
       return NextResponse.redirect(new URL("/dashboard", req.url));
     }
 
-    // Additional middleware logic can be added here if needed
+    // Jika user sudah login dan di home page, redirect ke dashboard
+    if (token && pathname === "/") {
+      return NextResponse.redirect(new URL("/dashboard", req.url));
+    }
+
     return NextResponse.next();
   },
   {
@@ -22,13 +23,15 @@ export default withAuth(
       authorized: ({ token, req }) => {
         const { pathname } = req.nextUrl;
 
-        // Allow access to public pages
-        const publicPages = ["/", "/auth/login", "/auth/register"];
-        if (publicPages.includes(pathname)) {
+        // Public routes
+        const publicRoutes = ["/", "/auth/login", "/auth/register"];
+
+        // Jika route public, allow
+        if (publicRoutes.includes(pathname)) {
           return true;
         }
 
-        // For protected routes, check if user is authenticated
+        // Untuk protected routes, butuh token
         return !!token;
       },
     },
@@ -36,16 +39,5 @@ export default withAuth(
 );
 
 export const config = {
-  matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - api (API routes)
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - public folder
-     * - manifest.json, robots.txt, sitemap.xml
-     */
-    "/((?!api|_next/static|_next/image|favicon.ico|public/|manifest.json|robots.txt|sitemap.xml).*)",
-  ],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|api/auth).*)"],
 };
