@@ -147,25 +147,15 @@ export function RegisterForm({ className, ...props }) {
                   </div>
                   <Input
                     id="confirmPassword"
-                    name="confirmPassword"
+                    name="password_confirmation"
                     type="password"
                     placeholder="********"
                     required
-                    value={formData.confirmPassword}
+                    value={formData.password_confirmation}
                     onChange={handleChange}
                     disabled={isPending}
                   />
                 </div>
-                {error && (
-                  <div className="text-red-500 text-sm text-center">
-                    {error}
-                  </div>
-                )}
-                {success && (
-                  <div className="text-green-500 text-sm text-center">
-                    {success}
-                  </div>
-                )}
                 <div className="flex flex-col gap-3">
                   <Button
                     type="submit"
