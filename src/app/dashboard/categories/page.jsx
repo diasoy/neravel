@@ -112,15 +112,12 @@ const CategoriesPage = ({ setTitleHeader }) => {
     },
   ];
 
-  // Load categories data dengan useCallback untuk mencegah re-creation
   const loadCategories = useCallback(async (page = 1, search = "") => {
     try {
-      // Cancel previous request jika ada
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
       }
 
-      // Create new abort controller
       abortControllerRef.current = new AbortController();
 
       setIsLoading(true);
@@ -145,19 +142,17 @@ const CategoriesPage = ({ setTitleHeader }) => {
         });
       }
     } catch (error) {
-      // Handle canceled requests - tidak perlu menampilkan error
       if (error.code === "ERR_CANCELED" || error.name === "CanceledError") {
-        return; // Exit gracefully tanpa toast error
+        return;
       }
 
-      // Handle real errors
       loading.fetchError("Kategori");
     } finally {
       setIsLoading(false);
       abortControllerRef.current = null;
     }
   }, []);
-  // Handle page change
+
   const handlePageChange = useCallback(
     (page) => {
       loadCategories(page, debouncedSearchTerm);
@@ -165,18 +160,15 @@ const CategoriesPage = ({ setTitleHeader }) => {
     [loadCategories, debouncedSearchTerm]
   );
 
-  // Handle search - hanya update state, tidak langsung fetch
   const handleSearch = useCallback((search) => {
     setSearchTerm(search);
   }, []);
 
-  // Handle add category
   const handleAddCategory = useCallback(() => {
     setSelectedCategory(null);
     setIsModalOpen(true);
   }, []);
 
-  // Handle view category
   const handleViewCategory = useCallback(async (category) => {
     try {
       const response = await categoriesService.getCategory(category.id);
@@ -188,13 +180,11 @@ const CategoriesPage = ({ setTitleHeader }) => {
     }
   }, []);
 
-  // Handle edit category
   const handleEditCategory = useCallback((category) => {
     setSelectedCategory(category);
     setIsModalOpen(true);
   }, []);
 
-  // Handle delete category
   const handleDeleteCategory = useCallback(
     async (category) => {
       if (
@@ -214,7 +204,6 @@ const CategoriesPage = ({ setTitleHeader }) => {
     [loadCategories, pagination.current_page, debouncedSearchTerm]
   );
 
-  // Handle restore category
   const handleRestoreCategory = useCallback(
     async (category) => {
       try {
@@ -228,7 +217,6 @@ const CategoriesPage = ({ setTitleHeader }) => {
     [loadCategories, pagination.current_page, debouncedSearchTerm]
   );
 
-  // Handle toggle status
   const handleToggleStatus = useCallback(
     async (category) => {
       try {
@@ -246,18 +234,15 @@ const CategoriesPage = ({ setTitleHeader }) => {
     [loadCategories, pagination.current_page, debouncedSearchTerm]
   );
 
-  // Handle form submit
   const handleFormSubmit = useCallback(
     async (formData) => {
       try {
         setIsSubmitting(true);
 
         if (selectedCategory) {
-          // Update existing category
           await categoriesService.updateCategory(selectedCategory.id, formData);
           crud.updateSuccess("Kategori");
         } else {
-          // Create new category
           await categoriesService.createCategory(formData);
           crud.createSuccess("Kategori");
         }
@@ -282,7 +267,6 @@ const CategoriesPage = ({ setTitleHeader }) => {
     ]
   );
 
-  // Effect untuk initial load - hanya sekali saat component mount
   useEffect(() => {
     if (isInitialMount.current) {
       loadCategories();
@@ -290,20 +274,16 @@ const CategoriesPage = ({ setTitleHeader }) => {
     }
   }, [loadCategories]);
 
-  // Effect untuk handle debounced search - skip pada initial mount
   useEffect(() => {
-    // Skip jika masih initial mount atau search term kosong pada load pertama
     if (isInitialMount.current) {
       return;
     }
 
-    // Hanya fetch jika sudah ada perubahan search term setelah initial mount
     if (debouncedSearchTerm !== undefined) {
       loadCategories(1, debouncedSearchTerm);
     }
   }, [debouncedSearchTerm, loadCategories]);
 
-  // Cleanup function untuk cancel pending requests
   useEffect(() => {
     return () => {
       if (abortControllerRef.current) {

@@ -149,24 +149,22 @@ export function DataTable({
             <CardTitle>{title}</CardTitle>
             {description && <CardDescription>{description}</CardDescription>}
           </div>
-          {showAddButton && (
-            <Button onClick={onAdd}>
-              <Plus className="h-4 w-4 mr-2" />
-              {addButtonText}
-            </Button>
-          )}
-        </div>
-
-        {/* Search */}
-        <div className="flex items-center space-x-2">
-          <div className="relative flex-1 max-w-sm">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-            <Input
-              placeholder={searchPlaceholder}
-              value={searchTerm}
-              onChange={(e) => handleSearch(e.target.value)}
-              className="pl-10"
-            />
+          <div className="flex items-center space-x-2">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+              <Input
+                placeholder={searchPlaceholder}
+                value={searchTerm}
+                onChange={(e) => handleSearch(e.target.value)}
+                className="pl-10 w-64"
+              />
+            </div>
+            {showAddButton && (
+              <Button onClick={onAdd}>
+                <Plus className="h-4 w-4 mr-2" />
+                {addButtonText}
+              </Button>
+            )}
           </div>
         </div>
       </CardHeader>
