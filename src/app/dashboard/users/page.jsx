@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import TitleContent from "@/components/dashboard/TitleContent";
 import { DataTable } from "@/components/ui/data-table";
+import { UserModal } from "@/components/views/User/UserModal";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -19,7 +20,7 @@ import usersService from "@/services/users.service";
 import { useToast } from "@/hooks/useToast";
 
 const UsersPage = () => {
-  const { crud, loading } = useToast();
+  const { crud, loading, status } = useToast();
   const [users, setUsers] = useState([]);
   const [pagination, setPagination] = useState({});
   const [isLoading, setIsLoading] = useState(true);
@@ -118,52 +119,68 @@ const UsersPage = () => {
     },
   ];
 
-  const loadUsers = useCallback(async (page = 1, search = "") => {
-    try {
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
+  // Use refs to store current values to avoid dependency issues
+  const paginationRef = useRef(pagination);
+  const debouncedSearchTermRef = useRef(debouncedSearchTerm);
 
-      abortControllerRef.current = new AbortController();
+  // Update refs when values change
+  useEffect(() => {
+    paginationRef.current = pagination;
+  }, [pagination]);
 
-      setIsLoading(true);
-      const params = {
-        page,
-        ...(search && { search }),
-      };
+  useEffect(() => {
+    debouncedSearchTermRef.current = debouncedSearchTerm;
+  }, [debouncedSearchTerm]);
 
-      const response = await usersService.getUsers(params, {
-        signal: abortControllerRef.current.signal,
-      });
+  const loadUsers = useCallback(
+    async (page = 1, search = "") => {
+      try {
+        if (abortControllerRef.current) {
+          abortControllerRef.current.abort();
+        }
 
-      if (response.data.success) {
-        setUsers(response.data.data.data);
-        setPagination({
-          current_page: response.data.data.current_page,
-          last_page: response.data.data.last_page,
-          from: response.data.data.from,
-          to: response.data.data.to,
-          total: response.data.data.total,
-          per_page: response.data.data.per_page,
+        abortControllerRef.current = new AbortController();
+
+        setIsLoading(true);
+        const params = {
+          page,
+          ...(search && { search }),
+        };
+
+        const response = await usersService.getUsers(params, {
+          signal: abortControllerRef.current.signal,
         });
-      }
-    } catch (error) {
-      if (error.code === "ERR_CANCELED" || error.name === "CanceledError") {
-        return;
-      }
 
-      loading.fetchError("User");
-    } finally {
-      setIsLoading(false);
-      abortControllerRef.current = null;
-    }
-  }, []);
+        if (response.data.success) {
+          setUsers(response.data.data.data);
+          setPagination({
+            current_page: response.data.data.current_page,
+            last_page: response.data.data.last_page,
+            from: response.data.data.from,
+            to: response.data.data.to,
+            total: response.data.data.total,
+            per_page: response.data.data.per_page,
+          });
+        }
+      } catch (error) {
+        if (error.code === "ERR_CANCELED" || error.name === "CanceledError") {
+          return;
+        }
+
+        loading.fetchError("User");
+      } finally {
+        setIsLoading(false);
+        abortControllerRef.current = null;
+      }
+    },
+    [] // Empty dependencies array to prevent infinite loop
+  );
 
   const handlePageChange = useCallback(
     (page) => {
-      loadUsers(page, debouncedSearchTerm);
+      loadUsers(page, debouncedSearchTermRef.current);
     },
-    [loadUsers, debouncedSearchTerm]
+    [] // Remove all dependencies
   );
 
   const handleSearch = useCallback((search) => {
@@ -175,16 +192,19 @@ const UsersPage = () => {
     setIsModalOpen(true);
   }, []);
 
-  const handleViewUser = useCallback(async (user) => {
-    try {
-      const response = await usersService.getUser(user.id);
-      if (response.data.success) {
-        setViewUser(response.data.data);
+  const handleViewUser = useCallback(
+    async (user) => {
+      try {
+        const response = await usersService.getUser(user.id);
+        if (response.data.success) {
+          setViewUser(response.data.data);
+        }
+      } catch (error) {
+        loading.fetchError("Detail User");
       }
-    } catch (error) {
-      loading.fetchError("Detail User");
-    }
-  }, []);
+    },
+    [] // Empty dependencies array to prevent infinite loop
+  );
 
   const handleEditUser = useCallback((user) => {
     setSelectedUser(user);
@@ -197,13 +217,16 @@ const UsersPage = () => {
         try {
           await usersService.deleteUser(user.id);
           crud.deleteSuccess("User");
-          loadUsers(pagination.current_page, debouncedSearchTerm);
+          loadUsers(
+            paginationRef.current.current_page,
+            debouncedSearchTermRef.current
+          );
         } catch (error) {
           crud.deleteError("User");
         }
       }
     },
-    [loadUsers, pagination.current_page, debouncedSearchTerm]
+    [] // Remove all dependencies
   );
 
   const handleToggleStatus = useCallback(
@@ -211,16 +234,19 @@ const UsersPage = () => {
       try {
         await usersService.toggleStatus(user.id);
         if (user.is_active) {
-          crud.deactivated("User");
+          status.deactivated("User");
         } else {
-          crud.activated("User");
+          status.activated("User");
         }
-        loadUsers(pagination.current_page, debouncedSearchTerm);
+        loadUsers(
+          paginationRef.current.current_page,
+          debouncedSearchTermRef.current
+        );
       } catch (error) {
-        crud.statusChangeError("User");
+        status.statusChangeError("User");
       }
     },
-    [loadUsers, pagination.current_page, debouncedSearchTerm]
+    [] // Remove all dependencies
   );
 
   const handleUpdateRole = useCallback(
@@ -228,12 +254,15 @@ const UsersPage = () => {
       try {
         await usersService.updateRole(user.id, { role: newRole });
         crud.updateSuccess("Role User");
-        loadUsers(pagination.current_page, debouncedSearchTerm);
+        loadUsers(
+          paginationRef.current.current_page,
+          debouncedSearchTermRef.current
+        );
       } catch (error) {
         crud.updateError("Role User");
       }
     },
-    [loadUsers, pagination.current_page, debouncedSearchTerm]
+    [] // Remove all dependencies
   );
 
   const handleFormSubmit = useCallback(
@@ -245,13 +274,15 @@ const UsersPage = () => {
           await usersService.updateUser(selectedUser.id, formData);
           crud.updateSuccess("User");
         } else {
-          // Note: Users are typically created through registration
-          // This might not be available in the API
+          await usersService.createUser(formData);
           crud.createSuccess("User");
         }
 
         setIsModalOpen(false);
-        loadUsers(pagination.current_page, debouncedSearchTerm);
+        loadUsers(
+          paginationRef.current.current_page,
+          debouncedSearchTermRef.current
+        );
       } catch (error) {
         if (selectedUser) {
           crud.updateError("User");
@@ -262,7 +293,7 @@ const UsersPage = () => {
         setIsSubmitting(false);
       }
     },
-    [selectedUser, loadUsers, pagination.current_page, debouncedSearchTerm]
+    [selectedUser] // Only depend on selectedUser
   );
 
   useEffect(() => {
@@ -270,7 +301,7 @@ const UsersPage = () => {
       loadUsers();
       isInitialMount.current = false;
     }
-  }, [loadUsers]);
+  }, []); // Remove loadUsers from dependencies to prevent infinite loop
 
   useEffect(() => {
     if (isInitialMount.current) {
@@ -280,7 +311,7 @@ const UsersPage = () => {
     if (debouncedSearchTerm !== undefined) {
       loadUsers(1, debouncedSearchTerm);
     }
-  }, [debouncedSearchTerm, loadUsers]);
+  }, [debouncedSearchTerm]); // Remove loadUsers from dependencies to prevent infinite loop
 
   useEffect(() => {
     return () => {
@@ -313,14 +344,14 @@ const UsersPage = () => {
         showAddButton={false}
       />
 
-      {/* Add/Edit Modal - You'll need to create a UserModal component */}
-      {/* <UserModal
+      {/* Add/Edit Modal */}
+      <UserModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onSubmit={handleFormSubmit}
         user={selectedUser}
         isLoading={isSubmitting}
-      /> */}
+      />
 
       {/* Detail View Modal */}
       {viewUser && (

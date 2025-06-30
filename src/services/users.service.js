@@ -16,6 +16,15 @@ const usersService = {
     }
   },
 
+  createUser: async (data) => {
+    try {
+      const response = await instance.post("/users", data);
+      return response;
+    } catch (error) {
+      throw error;
+    }
+  },
+
   getUser: async (id) => {
     try {
       const response = await instance.get(`/users/${id}`);
