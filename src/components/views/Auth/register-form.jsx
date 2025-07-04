@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/useToast";
 import authServices from "@/services/auth.service";
+import { LoadingSpinner } from "@/components/ui/loading";
 
 export function RegisterForm({ className, ...props }) {
   const [formData, setFormData] = useState({
@@ -39,7 +40,6 @@ export function RegisterForm({ className, ...props }) {
     e.preventDefault();
     setIsPending(true);
 
-    // Validation with toast
     if (!formData.name) {
       validation.required("Nama");
       setIsPending(false);
@@ -162,7 +162,7 @@ export function RegisterForm({ className, ...props }) {
                     className="w-full hover:cursor-pointer"
                     disabled={isPending}
                   >
-                    {isPending ? "Loading..." : "Daftar"}
+                    {isPending ? <LoadingSpinner /> : "Daftar"}
                   </Button>
                 </div>
               </div>

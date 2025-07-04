@@ -11,6 +11,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Search,
   ChevronLeft,
@@ -50,11 +51,12 @@ export function DataTable({
   addButtonText = "Tambah Data",
   showAddButton = true,
   showActions = true,
+  searchValue = "",
 }) {
-  const [searchTerm, setSearchTerm] = useState("");
+  // Pastikan data adalah array
+  const safeData = Array.isArray(data) ? data : [];
 
   const handleSearch = (value) => {
-    setSearchTerm(value);
     onSearch(value);
   };
 
@@ -62,6 +64,43 @@ export function DataTable({
     if (page >= 1 && page <= pagination.last_page) {
       onPageChange(page);
     }
+  };
+
+  const renderTableSkeleton = () => {
+    const skeletonRows = Array.from({ length: 5 }, (_, index) => (
+      <tr key={index} className="border-b">
+        {columns.map((_, colIndex) => (
+          <td key={colIndex} className="py-3 px-4">
+            <Skeleton className="h-4 w-full" />
+          </td>
+        ))}
+        {showActions && (
+          <td className="py-3 px-4">
+            <Skeleton className="h-8 w-8 rounded" />
+          </td>
+        )}
+      </tr>
+    ));
+
+    return (
+      <div className="overflow-x-auto">
+        <table className="w-full">
+          <thead>
+            <tr className="border-b">
+              {columns.map((column, index) => (
+                <th key={index} className="text-left py-3 px-4 font-semibold">
+                  {column.header}
+                </th>
+              ))}
+              {showActions && (
+                <th className="text-left py-3 px-4 font-semibold">Actions</th>
+              )}
+            </tr>
+          </thead>
+          <tbody>{skeletonRows}</tbody>
+        </table>
+      </div>
+    );
   };
 
   const renderPagination = () => {
@@ -78,7 +117,7 @@ export function DataTable({
         variant="outline"
         size="sm"
         onClick={() => handlePageChange(currentPage - 1)}
-        disabled={currentPage === 1}
+        disabled={currentPage === 1 || isLoading}
       >
         <ChevronLeft className="h-4 w-4" />
       </Button>
@@ -96,6 +135,7 @@ export function DataTable({
           variant={i === currentPage ? "default" : "outline"}
           size="sm"
           onClick={() => handlePageChange(i)}
+          disabled={isLoading}
         >
           {i}
         </Button>
@@ -109,7 +149,7 @@ export function DataTable({
         variant="outline"
         size="sm"
         onClick={() => handlePageChange(currentPage + 1)}
-        disabled={currentPage === lastPage}
+        disabled={currentPage === lastPage || isLoading}
       >
         <ChevronRight className="h-4 w-4" />
       </Button>
@@ -126,21 +166,6 @@ export function DataTable({
     );
   };
 
-  if (isLoading) {
-    return (
-      <Card>
-        <CardContent className="p-6">
-          <div className="flex items-center justify-center h-64">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto mb-4"></div>
-              <p className="text-gray-500">Memuat data...</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
   return (
     <Card>
       <CardHeader>
@@ -154,13 +179,14 @@ export function DataTable({
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
               <Input
                 placeholder={searchPlaceholder}
-                value={searchTerm}
+                value={searchValue}
                 onChange={(e) => handleSearch(e.target.value)}
                 className="pl-10 w-64"
+                disabled={isLoading}
               />
             </div>
             {showAddButton && (
-              <Button onClick={onAdd}>
+              <Button onClick={onAdd} disabled={isLoading}>
                 <Plus className="h-4 w-4 mr-2" />
                 {addButtonText}
               </Button>
@@ -170,91 +196,102 @@ export function DataTable({
       </CardHeader>
 
       <CardContent>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b">
-                {columns.map((column, index) => (
-                  <th key={index} className="text-left py-3 px-4 font-semibold">
-                    {column.header}
-                  </th>
-                ))}
-                {showActions && (
-                  <th className="text-left py-3 px-4 font-semibold">Actions</th>
-                )}
-              </tr>
-            </thead>
-            <tbody>
-              {data.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={columns.length + (showActions ? 1 : 0)}
-                    className="text-center py-8 text-gray-500"
-                  >
-                    Tidak ada data yang ditemukan
-                  </td>
+        {isLoading ? (
+          renderTableSkeleton()
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b">
+                  {columns.map((column, index) => (
+                    <th
+                      key={index}
+                      className="text-left py-3 px-4 font-semibold"
+                    >
+                      {column.header}
+                    </th>
+                  ))}
+                  {showActions && (
+                    <th className="text-left py-3 px-4 font-semibold">
+                      Actions
+                    </th>
+                  )}
                 </tr>
-              ) : (
-                data.map((item, index) => (
-                  <tr
-                    key={item.id || index}
-                    className="border-b hover:bg-gray-50"
-                  >
-                    {columns.map((column, colIndex) => (
-                      <td key={colIndex} className="py-3 px-4">
-                        {column.render
-                          ? column.render(item, index)
-                          : item[column.accessor]}
-                      </td>
-                    ))}
-                    {showActions && (
-                      <td className="py-3 px-4">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => onView(item)}>
-                              <Eye className="h-4 w-4 mr-2" />
-                              Lihat Detail
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => onEdit(item)}>
-                              <Edit className="h-4 w-4 mr-2" />
-                              Edit
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => onToggleStatus(item)}
-                            >
-                              <Power className="h-4 w-4 mr-2" />
-                              {item.is_active ? "Nonaktifkan" : "Aktifkan"}
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            {item.deleted_at ? (
-                              <DropdownMenuItem onClick={() => onRestore(item)}>
-                                <RefreshCw className="h-4 w-4 mr-2" />
-                                Restore
-                              </DropdownMenuItem>
-                            ) : (
-                              <DropdownMenuItem
-                                onClick={() => onDelete(item)}
-                                className="text-red-600"
-                              >
-                                <Trash2 className="h-4 w-4 mr-2" />
-                                Delete
-                              </DropdownMenuItem>
-                            )}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </td>
-                    )}
+              </thead>
+              <tbody>
+                {safeData.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={columns.length + (showActions ? 1 : 0)}
+                      className="text-center py-8 text-gray-500"
+                    >
+                      Tidak ada data yang ditemukan
+                    </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                ) : (
+                  safeData.map((item, index) => (
+                    <tr
+                      key={item.id || index}
+                      className="border-b hover:bg-gray-50"
+                    >
+                      {columns.map((column, colIndex) => (
+                        <td key={colIndex} className="py-3 px-4">
+                          {column.render
+                            ? column.render(item, index)
+                            : item[column.accessor]}
+                        </td>
+                      ))}
+                      {showActions && (
+                        <td className="py-3 px-4">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="sm">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => onView(item)}>
+                                <Eye className="h-4 w-4 mr-2" />
+                                Lihat Detail
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => onEdit(item)}>
+                                <Edit className="h-4 w-4 mr-2" />
+                                Edit
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => onToggleStatus(item)}
+                              >
+                                <Power className="h-4 w-4 mr-2" />
+                                {item.is_active ? "Nonaktifkan" : "Aktifkan"}
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              {item.deleted_at ? (
+                                <DropdownMenuItem
+                                  onClick={() => onRestore(item)}
+                                >
+                                  <RefreshCw className="h-4 w-4 mr-2" />
+                                  Restore
+                                </DropdownMenuItem>
+                              ) : (
+                                <DropdownMenuItem
+                                  onClick={() => onDelete(item)}
+                                  className="text-red-600"
+                                >
+                                  <Trash2 className="h-4 w-4 mr-2" />
+                                  Delete
+                                </DropdownMenuItem>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </td>
+                      )}
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
 
         {renderPagination()}
       </CardContent>

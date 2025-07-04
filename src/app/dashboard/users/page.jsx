@@ -18,28 +18,144 @@ import {
 import useDebounce from "@/hooks/useDebounce";
 import usersService from "@/services/users.service";
 import { useToast } from "@/hooks/useToast";
+import useUserStore from "@/store/userStore";
 
 const UsersPage = () => {
   const { crud, loading, status } = useToast();
-  const [users, setUsers] = useState([]);
-  const [pagination, setPagination] = useState({});
-  const [isLoading, setIsLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState("");
 
-  // Modal states
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedUser, setSelectedUser] = useState(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const {
+    users,
+    pagination,
+    isLoading,
+    searchTerm,
+    isModalOpen,
+    selectedUser,
+    isSubmitting,
+    viewUser,
+    setUsers,
+    setPagination,
+    setIsLoading,
+    setSearchTerm,
+    setIsSubmitting,
+    openModal,
+    closeModal,
+    openViewModal,
+    closeViewModal,
+    fetchUsers,
+    deleteUser,
+    toggleUserStatus,
+  } = useUserStore();
 
-  // Detail view state
-  const [viewUser, setViewUser] = useState(null);
+  // Debounced search term
+  const debouncedSearchTerm = useDebounce(searchTerm, 500);
 
-  // Refs untuk mencegah multiple calls
-  const isInitialMount = useRef(true);
-  const abortControllerRef = useRef(null);
+  // Fetch users on component mount and search term change
+  useEffect(() => {
+    fetchUsers(1, debouncedSearchTerm);
+  }, [debouncedSearchTerm, fetchUsers]);
 
-  // Debounce search term dengan delay 1 detik
-  const debouncedSearchTerm = useDebounce(searchTerm, 1000);
+  // Handler functions
+  const handlePageChange = useCallback(
+    (page) => {
+      fetchUsers(page, searchTerm);
+    },
+    [fetchUsers, searchTerm]
+  );
+
+  const handleSearch = useCallback(
+    (term) => {
+      setSearchTerm(term);
+    },
+    [setSearchTerm]
+  );
+
+  const handleAddUser = useCallback(() => {
+    openModal();
+  }, [openModal]);
+
+  const handleEditUser = useCallback(
+    (user) => {
+      openModal(user);
+    },
+    [openModal]
+  );
+
+  const handleViewUser = useCallback(
+    (user) => {
+      openViewModal(user);
+    },
+    [openViewModal]
+  );
+
+  const handleDeleteUser = useCallback(
+    async (user) => {
+      if (
+        window.confirm(`Apakah Anda yakin ingin menghapus user ${user.name}?`)
+      ) {
+        const success = await deleteUser(user.id);
+        if (success) {
+          crud.success("User berhasil dihapus");
+        } else {
+          crud.error("Gagal menghapus user");
+        }
+      }
+    },
+    [deleteUser, crud]
+  );
+
+  const handleToggleStatus = useCallback(
+    async (user) => {
+      const action = user.is_active ? "menonaktifkan" : "mengaktifkan";
+      if (
+        window.confirm(`Apakah Anda yakin ingin ${action} user ${user.name}?`)
+      ) {
+        const success = await toggleUserStatus(user.id);
+        if (success) {
+          crud.success(
+            `User berhasil ${user.is_active ? "dinonaktifkan" : "diaktifkan"}`
+          );
+        } else {
+          crud.error(`Gagal ${action} user`);
+        }
+      }
+    },
+    [toggleUserStatus, crud]
+  );
+
+  const handleFormSubmit = useCallback(
+    async (formData) => {
+      setIsSubmitting(true);
+      try {
+        if (selectedUser) {
+          // Update user
+          await usersService.update(selectedUser.id, formData);
+          crud.success("User berhasil diperbarui");
+        } else {
+          // Create user
+          await usersService.create(formData);
+          crud.success("User berhasil ditambahkan");
+        }
+
+        closeModal();
+        fetchUsers(pagination.current_page || 1, searchTerm);
+      } catch (error) {
+        crud.error(
+          selectedUser ? "Gagal memperbarui user" : "Gagal menambahkan user"
+        );
+      } finally {
+        setIsSubmitting(false);
+      }
+    },
+    [
+      selectedUser,
+      setIsSubmitting,
+      crud,
+      closeModal,
+      fetchUsers,
+      pagination.current_page,
+      searchTerm,
+    ]
+  );
 
   // Columns configuration untuk data table
   const columns = [
@@ -47,7 +163,6 @@ const UsersPage = () => {
       header: "No",
       accessor: "no",
       render: (item, index) => {
-        // Hitung nomor berdasarkan halaman dan index
         const currentPage = pagination.current_page || 1;
         const perPage = pagination.per_page || 8;
         return (currentPage - 1) * perPage + index + 1;
@@ -119,208 +234,6 @@ const UsersPage = () => {
     },
   ];
 
-  // Use refs to store current values to avoid dependency issues
-  const paginationRef = useRef(pagination);
-  const debouncedSearchTermRef = useRef(debouncedSearchTerm);
-
-  // Update refs when values change
-  useEffect(() => {
-    paginationRef.current = pagination;
-  }, [pagination]);
-
-  useEffect(() => {
-    debouncedSearchTermRef.current = debouncedSearchTerm;
-  }, [debouncedSearchTerm]);
-
-  const loadUsers = useCallback(
-    async (page = 1, search = "") => {
-      try {
-        if (abortControllerRef.current) {
-          abortControllerRef.current.abort();
-        }
-
-        abortControllerRef.current = new AbortController();
-
-        setIsLoading(true);
-        const params = {
-          page,
-          ...(search && { search }),
-        };
-
-        const response = await usersService.getUsers(params, {
-          signal: abortControllerRef.current.signal,
-        });
-
-        if (response.data.success) {
-          setUsers(response.data.data.data);
-          setPagination({
-            current_page: response.data.data.current_page,
-            last_page: response.data.data.last_page,
-            from: response.data.data.from,
-            to: response.data.data.to,
-            total: response.data.data.total,
-            per_page: response.data.data.per_page,
-          });
-        }
-      } catch (error) {
-        if (error.code === "ERR_CANCELED" || error.name === "CanceledError") {
-          return;
-        }
-
-        loading.fetchError("User");
-      } finally {
-        setIsLoading(false);
-        abortControllerRef.current = null;
-      }
-    },
-    [] // Empty dependencies array to prevent infinite loop
-  );
-
-  const handlePageChange = useCallback(
-    (page) => {
-      loadUsers(page, debouncedSearchTermRef.current);
-    },
-    [] // Remove all dependencies
-  );
-
-  const handleSearch = useCallback((search) => {
-    setSearchTerm(search);
-  }, []);
-
-  const handleAddUser = useCallback(() => {
-    setSelectedUser(null);
-    setIsModalOpen(true);
-  }, []);
-
-  const handleViewUser = useCallback(
-    async (user) => {
-      try {
-        const response = await usersService.getUser(user.id);
-        if (response.data.success) {
-          setViewUser(response.data.data);
-        }
-      } catch (error) {
-        loading.fetchError("Detail User");
-      }
-    },
-    [] // Empty dependencies array to prevent infinite loop
-  );
-
-  const handleEditUser = useCallback((user) => {
-    setSelectedUser(user);
-    setIsModalOpen(true);
-  }, []);
-
-  const handleDeleteUser = useCallback(
-    async (user) => {
-      if (confirm(`Apakah Anda yakin ingin menghapus user "${user.name}"?`)) {
-        try {
-          await usersService.deleteUser(user.id);
-          crud.deleteSuccess("User");
-          loadUsers(
-            paginationRef.current.current_page,
-            debouncedSearchTermRef.current
-          );
-        } catch (error) {
-          crud.deleteError("User");
-        }
-      }
-    },
-    [] // Remove all dependencies
-  );
-
-  const handleToggleStatus = useCallback(
-    async (user) => {
-      try {
-        await usersService.toggleStatus(user.id);
-        if (user.is_active) {
-          status.deactivated("User");
-        } else {
-          status.activated("User");
-        }
-        loadUsers(
-          paginationRef.current.current_page,
-          debouncedSearchTermRef.current
-        );
-      } catch (error) {
-        status.statusChangeError("User");
-      }
-    },
-    [] // Remove all dependencies
-  );
-
-  const handleUpdateRole = useCallback(
-    async (user, newRole) => {
-      try {
-        await usersService.updateRole(user.id, { role: newRole });
-        crud.updateSuccess("Role User");
-        loadUsers(
-          paginationRef.current.current_page,
-          debouncedSearchTermRef.current
-        );
-      } catch (error) {
-        crud.updateError("Role User");
-      }
-    },
-    [] // Remove all dependencies
-  );
-
-  const handleFormSubmit = useCallback(
-    async (formData) => {
-      try {
-        setIsSubmitting(true);
-
-        if (selectedUser) {
-          await usersService.updateUser(selectedUser.id, formData);
-          crud.updateSuccess("User");
-        } else {
-          await usersService.createUser(formData);
-          crud.createSuccess("User");
-        }
-
-        setIsModalOpen(false);
-        loadUsers(
-          paginationRef.current.current_page,
-          debouncedSearchTermRef.current
-        );
-      } catch (error) {
-        if (selectedUser) {
-          crud.updateError("User");
-        } else {
-          crud.createError("User");
-        }
-      } finally {
-        setIsSubmitting(false);
-      }
-    },
-    [selectedUser] // Only depend on selectedUser
-  );
-
-  useEffect(() => {
-    if (isInitialMount.current) {
-      loadUsers();
-      isInitialMount.current = false;
-    }
-  }, []); // Remove loadUsers from dependencies to prevent infinite loop
-
-  useEffect(() => {
-    if (isInitialMount.current) {
-      return;
-    }
-
-    if (debouncedSearchTerm !== undefined) {
-      loadUsers(1, debouncedSearchTerm);
-    }
-  }, [debouncedSearchTerm]); // Remove loadUsers from dependencies to prevent infinite loop
-
-  useEffect(() => {
-    return () => {
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
-    };
-  }, []);
-
   return (
     <div className="space-y-6">
       <TitleContent title="Users" description="Kelola pengguna sistem Anda" />
@@ -347,7 +260,7 @@ const UsersPage = () => {
       {/* Add/Edit Modal */}
       <UserModal
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        onClose={closeModal}
         onSubmit={handleFormSubmit}
         user={selectedUser}
         isLoading={isSubmitting}
@@ -355,7 +268,7 @@ const UsersPage = () => {
 
       {/* Detail View Modal */}
       {viewUser && (
-        <Dialog open={!!viewUser} onOpenChange={() => setViewUser(null)}>
+        <Dialog open={!!viewUser} onOpenChange={closeViewModal}>
           <DialogContent className="sm:max-w-[500px]">
             <DialogHeader>
               <DialogTitle>Detail User</DialogTitle>
@@ -433,7 +346,7 @@ const UsersPage = () => {
             </div>
 
             <DialogFooter>
-              <Button variant="outline" onClick={() => setViewUser(null)}>
+              <Button variant="outline" onClick={closeViewModal}>
                 Tutup
               </Button>
             </DialogFooter>

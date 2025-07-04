@@ -3,7 +3,7 @@ import { cn } from "@/libs/utils";
 export function LoadingSpinner({
   size = "default",
   className,
-  text = "Memuat...",
+  text
 }) {
   const sizeClasses = {
     small: "w-4 h-4",

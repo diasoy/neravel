@@ -12,7 +12,11 @@ const categoriesService = {
       if (error.code === "ERR_CANCELED" || error.name === "CanceledError") {
         throw error; 
       }
-      throw error;
+      throw new Error(
+        error.response?.data?.message ||
+          error.message ||
+          "Failed to fetch categories"
+      );
     }
   },
 
@@ -24,12 +28,11 @@ const categoriesService = {
       if (error.code === "ERR_CANCELED" || error.name === "CanceledError") {
         throw error;
       }
-
       throw error;
     }
   },
 
-  createCategory: async (data) => {
+  create: async (data) => {
     try {
       const response = await instance.post("/categories", data);
       return response;
@@ -38,7 +41,7 @@ const categoriesService = {
     }
   },
 
-  updateCategory: async (id, data) => {
+  update: async (id, data) => {
     try {
       const response = await instance.put(`/categories/${id}`, data);
       return response;
@@ -47,7 +50,7 @@ const categoriesService = {
     }
   },
 
-  deleteCategory: async (id) => {
+  delete: async (id) => {
     try {
       const response = await instance.delete(`/categories/${id}`);
       return response;
@@ -56,7 +59,7 @@ const categoriesService = {
     }
   },
 
-  restoreCategory: async (id) => {
+  restore: async (id) => {
     try {
       const response = await instance.post(`/categories/${id}/restore`);
       return response;
@@ -73,6 +76,11 @@ const categoriesService = {
       throw error;
     }
   },
+
+  createCategory: async (data) => categoriesService.create(data),
+  updateCategory: async (id, data) => categoriesService.update(id, data),
+  deleteCategory: async (id) => categoriesService.delete(id),
+  restoreCategory: async (id) => categoriesService.restore(id),
 };
 
 export default categoriesService;
