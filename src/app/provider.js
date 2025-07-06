@@ -4,34 +4,30 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { SessionProvider } from "next-auth/react";
 import { Toaster } from "sonner";
-import React from "react";
+import { useState } from "react";
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 1000 * 60 * 5,
-      refetchOnWindowFocus: false,
-      retry: false,
-    },
-  },
-});
+export default function ClientProviders({ children, session }) {
+  // Create QueryClient in component state to avoid SSR issues
+  const [queryClient] = useState(
+    () =>
+      new QueryClient({
+        defaultOptions: {
+          queries: {
+            retry: 1,
+            refetchOnWindowFocus: false,
+            staleTime: 5 * 60 * 1000, // 5 minutes
+            cacheTime: 10 * 60 * 1000, // 10 minutes
+          },
+        },
+      })
+  );
 
-export function Providers({ children, session }) {
   return (
     <SessionProvider session={session}>
       <QueryClientProvider client={queryClient}>
+        <Toaster position="top-right" expand={true} richColors closeButton />
         {children}
         <ReactQueryDevtools initialIsOpen={false} />
-        <Toaster
-          position="top-right"
-          toastOptions={{
-            style: {
-              fontFamily: "var(--font-geist-sans)",
-            },
-          }}
-          closeButton
-          richColors
-        />
       </QueryClientProvider>
     </SessionProvider>
   );

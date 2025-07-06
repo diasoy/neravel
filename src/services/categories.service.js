@@ -1,86 +1,47 @@
 import instance from "@/libs/axios/instance";
 
 const categoriesService = {
-  getCategories: async (params = {}, options = {}) => {
-    try {
-      const response = await instance.get("/categories", {
-        params,
-        ...options,
-      });
-      return response;
-    } catch (error) {
-      if (error.code === "ERR_CANCELED" || error.name === "CanceledError") {
-        throw error; 
-      }
-      throw new Error(
-        error.response?.data?.message ||
-          error.message ||
-          "Failed to fetch categories"
-      );
-    }
+  // Get paginated categories with search
+  getCategories: async (params = {}) => {
+    const response = await instance.get("/categories", { params });
+    return response.data;
   },
 
-  getCategory: async (id) => {
-    try {
-      const response = await instance.get(`/categories/${id}`);
-      return response;
-    } catch (error) {
-      if (error.code === "ERR_CANCELED" || error.name === "CanceledError") {
-        throw error;
-      }
-      throw error;
-    }
+  // Get single category by ID
+  getCategoryById: async (id) => {
+    const response = await instance.get(`/categories/${id}`);
+    return response.data;
   },
 
-  create: async (data) => {
-    try {
-      const response = await instance.post("/categories", data);
-      return response;
-    } catch (error) {
-      throw error;
-    }
+  // Create new category
+  createCategory: async (data) => {
+    const response = await instance.post("/categories", data);
+    return response.data;
   },
 
-  update: async (id, data) => {
-    try {
-      const response = await instance.put(`/categories/${id}`, data);
-      return response;
-    } catch (error) {
-      throw error;
-    }
+  // Update category
+  updateCategory: async (id, data) => {
+    const response = await instance.put(`/categories/${id}`, data);
+    return response.data;
   },
 
-  delete: async (id) => {
-    try {
-      const response = await instance.delete(`/categories/${id}`);
-      return response;
-    } catch (error) {
-      throw error;
-    }
+  // Delete category
+  deleteCategory: async (id) => {
+    const response = await instance.delete(`/categories/${id}`);
+    return response.data;
   },
 
-  restore: async (id) => {
-    try {
-      const response = await instance.post(`/categories/${id}/restore`);
-      return response;
-    } catch (error) {
-      throw error;
-    }
+  // Restore deleted category
+  restoreCategory: async (id) => {
+    const response = await instance.post(`/categories/${id}/restore`);
+    return response.data;
   },
 
-  toggleStatus: async (id) => {
-    try {
-      const response = await instance.patch(`/categories/${id}/toggle-status`);
-      return response;
-    } catch (error) {
-      throw error;
-    }
+  // Toggle category status (active/inactive)
+  toggleCategoryStatus: async (id) => {
+    const response = await instance.patch(`/categories/${id}/toggle-status`);
+    return response.data;
   },
-
-  createCategory: async (data) => categoriesService.create(data),
-  updateCategory: async (id, data) => categoriesService.update(id, data),
-  deleteCategory: async (id) => categoriesService.delete(id),
-  restoreCategory: async (id) => categoriesService.restore(id),
 };
 
 export default categoriesService;

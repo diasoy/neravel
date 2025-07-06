@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useCallback } from "react";
+import { useState, useMemo } from "react";
 import TitleContent from "@/components/dashboard/TitleContent";
 import { DataTable } from "@/components/ui/data-table";
 import { CategoryModal } from "@/components/views/Category/CategoryModal";
@@ -15,366 +15,199 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  useCategories,
+  useDeleteCategory,
+  useToggleCategoryStatus,
+  useRestoreCategory,
+} from "@/hooks/useCategories";
 import useDebounce from "@/hooks/useDebounce";
-import categoriesService from "@/services/categories.service";
-import { useToast } from "@/hooks/useToast";
 import useCategoryStore from "@/store/categoryStore";
 
 const CategoriesPage = () => {
-  const { crud, loading, status } = useToast();
-
-  // Zustand store
+  // UI State from Zustand Store
   const {
-    categories,
-    pagination,
-    isLoading,
     searchTerm,
     isModalOpen,
     selectedCategory,
-    isSubmitting,
     viewCategory,
-    setCategories,
-    setPagination,
-    setIsLoading,
     setSearchTerm,
-    setIsSubmitting,
     openModal,
     closeModal,
     openViewModal,
     closeViewModal,
-    fetchCategories,
-    deleteCategory,
-    restoreCategory,
-    toggleCategoryStatus,
-    fetchCategoryDetail,
   } = useCategoryStore();
+
+  // Local state for pagination
+  const [currentPage, setCurrentPage] = useState(1);
 
   // Debounced search term
   const debouncedSearchTerm = useDebounce(searchTerm, 500);
 
-  // Fetch categories on component mount and search term change
-  useEffect(() => {
-    fetchCategories(1, debouncedSearchTerm);
-  }, [debouncedSearchTerm, fetchCategories]);
-
-  // Handler functions
-  const handlePageChange = useCallback(
-    (page) => {
-      fetchCategories(page, searchTerm);
-    },
-    [fetchCategories, searchTerm]
+  // Query parameters
+  const queryParams = useMemo(
+    () => ({
+      page: currentPage,
+      search: debouncedSearchTerm,
+    }),
+    [currentPage, debouncedSearchTerm]
   );
 
-  const handleSearch = useCallback(
-    (term) => {
-      setSearchTerm(term);
-    },
-    [setSearchTerm]
-  );
+  // React Query hooks for data fetching
+  const {
+    data: categoriesResponse,
+    isLoading,
+    error,
+    refetch,
+  } = useCategories(queryParams);
 
-  const handleAddCategory = useCallback(() => {
-    openModal();
-  }, [openModal]);
+  // Mutation hooks
+  const deleteCategoryMutation = useDeleteCategory();
+  const toggleStatusMutation = useToggleCategoryStatus();
+  const restoreCategoryMutation = useRestoreCategory();
 
-  const handleEditCategory = useCallback(
-    (category) => {
-      openModal(category);
-    },
-    [openModal]
-  );
+  // Extract data from response
+  const categories = categoriesResponse?.data?.data || [];
+  const pagination = {
+    current_page: categoriesResponse?.data?.current_page || 1,
+    last_page: categoriesResponse?.data?.last_page || 1,
+    per_page: categoriesResponse?.data?.per_page || 8,
+    total: categoriesResponse?.data?.total || 0,
+    from: categoriesResponse?.data?.from || 0,
+    to: categoriesResponse?.data?.to || 0,
+  };
 
-  const handleViewCategory = useCallback(
-    async (category) => {
-      const categoryDetail = await fetchCategoryDetail(category.id);
-      if (!categoryDetail) {
-        crud.error("Gagal memuat detail kategori");
-      }
-    },
-    [fetchCategoryDetail, crud]
-  );
+  // Event handlers
+  const handleSearch = (value) => {
+    setSearchTerm(value);
+    setCurrentPage(1);
+  };
 
-  const handleDeleteCategory = useCallback(
-    async (category) => {
-      if (
-        window.confirm(
-          `Apakah Anda yakin ingin menghapus kategori "${category.name}"?`
-        )
-      ) {
-        const success = await deleteCategory(category.id);
-        if (success) {
-          crud.success("Kategori berhasil dihapus");
-        } else {
-          crud.error("Gagal menghapus kategori");
-        }
-      }
-    },
-    [deleteCategory, crud]
-  );
+  const handleDeleteCategory = async (item) => {
+    try {
+      await deleteCategoryMutation.mutateAsync(item.id);
+    } catch (error) {
+      // Error handled by mutation
+    }
+  };
 
-  const handleRestoreCategory = useCallback(
-    async (category) => {
-      if (
-        window.confirm(
-          `Apakah Anda yakin ingin mengembalikan kategori "${category.name}"?`
-        )
-      ) {
-        const success = await restoreCategory(category.id);
-        if (success) {
-          crud.success("Kategori berhasil dikembalikan");
-        } else {
-          crud.error("Gagal mengembalikan kategori");
-        }
-      }
-    },
-    [restoreCategory, crud]
-  );
+  const handleRestoreCategory = async (item) => {
+    try {
+      await restoreCategoryMutation.mutateAsync(item.id);
+    } catch (error) {
+      // Error handled by mutation
+    }
+  };
 
-  const handleToggleStatus = useCallback(
-    async (category) => {
-      const action = category.is_active ? "menonaktifkan" : "mengaktifkan";
-      if (
-        window.confirm(
-          `Apakah Anda yakin ingin ${action} kategori "${category.name}"?`
-        )
-      ) {
-        const success = await toggleCategoryStatus(category.id);
-        if (success) {
-          crud.success(
-            `Kategori berhasil ${
-              category.is_active ? "dinonaktifkan" : "diaktifkan"
-            }`
-          );
-        } else {
-          crud.error(`Gagal ${action} kategori`);
-        }
-      }
-    },
-    [toggleCategoryStatus, crud]
-  );
+  const handleToggleStatus = async (item) => {
+    try {
+      await toggleStatusMutation.mutateAsync(item.id);
+    } catch (error) {
+      // Error handled by mutation
+    }
+  };
 
-  const handleFormSubmit = useCallback(
-    async (formData) => {
-      setIsSubmitting(true);
-      try {
-        if (selectedCategory) {
-          // Update category
-          await categoriesService.update(selectedCategory.id, formData);
-          crud.success("Kategori berhasil diperbarui");
-        } else {
-          // Create category
-          await categoriesService.create(formData);
-          crud.success("Kategori berhasil ditambahkan");
-        }
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+  };
 
-        closeModal();
-        fetchCategories(pagination.current_page || 1, searchTerm);
-      } catch (error) {
-        crud.error(
-          selectedCategory
-            ? "Gagal memperbarui kategori"
-            : "Gagal menambahkan kategori"
-        );
-      } finally {
-        setIsSubmitting(false);
-      }
-    },
-    [
-      selectedCategory,
-      setIsSubmitting,
-      crud,
-      closeModal,
-      fetchCategories,
-      pagination.current_page,
-      searchTerm,
-    ]
-  );
-
-  // Columns configuration untuk data table
+  // Table columns definition
   const columns = [
     {
-      header: "No",
-      accessor: "no",
-      render: (item, index) => {
-        const currentPage = pagination.current_page || 1;
-        const perPage = pagination.per_page || 8;
-        return (currentPage - 1) * perPage + index + 1;
-      },
+      header: "Name",
+      accessor: "name",
     },
     {
-      header: "Nama Kategori",
-      accessor: "name",
-      render: (item) => (
-        <div>
-          <div className="font-medium">{item.name}</div>
-          <div className="text-sm text-gray-500 truncate max-w-xs">
-            {item.description || "Tidak ada deskripsi"}
-          </div>
-        </div>
-      ),
+      header: "Description",
+      accessor: "description",
     },
     {
       header: "Status",
       accessor: "is_active",
       render: (item) => (
         <Badge variant={item.is_active ? "success" : "destructive"}>
-          {item.is_active ? "Aktif" : "Tidak Aktif"}
+          {item.is_active ? "Active" : "Inactive"}
         </Badge>
       ),
     },
-    {
-      header: "Dibuat",
-      accessor: "created_at",
-      render: (item) => {
-        const date = new Date(item.created_at);
-        return (
-          <div className="text-sm">
-            <div>{date.toLocaleDateString("id-ID")}</div>
-            <div className="text-gray-500">
-              {date.toLocaleTimeString("id-ID", {
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
-            </div>
-          </div>
-        );
-      },
-    },
-    {
-      header: "Terakhir Update",
-      accessor: "updated_at",
-      render: (item) => {
-        const date = new Date(item.updated_at);
-        return (
-          <div className="text-sm">
-            <div>{date.toLocaleDateString("id-ID")}</div>
-            <div className="text-gray-500">
-              {date.toLocaleTimeString("id-ID", {
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
-            </div>
-          </div>
-        );
-      },
-    },
   ];
-
   return (
     <div className="space-y-6">
       <TitleContent
-        title="Categories"
-        description="Kelola kategori produk Anda"
+        title="Categories Management"
+        subtitle="Manage product categories"
       />
 
       <DataTable
-        title="Daftar Kategori"
-        description={`Total ${pagination.total || 0} kategori`}
-        data={categories}
+        title="Categories"
+        description="Manage your product categories"
         columns={columns}
-        pagination={pagination}
+        data={categories}
         isLoading={isLoading}
-        onPageChange={handlePageChange}
+        pagination={pagination}
+        searchValue={searchTerm}
         onSearch={handleSearch}
-        onAdd={handleAddCategory}
-        onView={handleViewCategory}
-        onEdit={handleEditCategory}
+        onPageChange={handlePageChange}
+        onAdd={() => openModal()}
+        onView={(item) => openViewModal(item)}
+        onEdit={(item) => openModal(item)}
         onDelete={handleDeleteCategory}
         onRestore={handleRestoreCategory}
         onToggleStatus={handleToggleStatus}
-        searchPlaceholder="Cari nama kategori..."
-        searchValue={searchTerm}
+        searchPlaceholder="Cari kategori..."
         addButtonText="Tambah Kategori"
       />
 
-      {/* Add/Edit Modal */}
+      {/* Category Modal for Create/Edit */}
       <CategoryModal
         isOpen={isModalOpen}
         onClose={closeModal}
-        onSubmit={handleFormSubmit}
         category={selectedCategory}
-        isLoading={isSubmitting}
+        onSuccess={() => {
+          closeModal();
+        }}
       />
 
-      {/* Detail View Modal */}
-      {viewCategory && (
-        <Dialog open={!!viewCategory} onOpenChange={closeViewModal}>
-          <DialogContent className="sm:max-w-[500px]">
-            <DialogHeader>
-              <DialogTitle>Detail Kategori</DialogTitle>
-              <DialogDescription>
-                Informasi lengkap kategori {viewCategory.name}
-              </DialogDescription>
-            </DialogHeader>
-
+      {/* View Category Dialog */}
+      <Dialog open={!!viewCategory} onOpenChange={() => closeViewModal()}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Category Details</DialogTitle>
+            <DialogDescription>View category information</DialogDescription>
+          </DialogHeader>
+          {viewCategory && (
             <div className="space-y-4">
               <div>
-                <Label className="text-sm font-semibold">Nama Kategori</Label>
-                <p className="text-sm text-gray-600">{viewCategory.name}</p>
+                <Label>Name</Label>
+                <p>{viewCategory.name}</p>
               </div>
-
               <div>
-                <Label className="text-sm font-semibold">Deskripsi</Label>
-                <p className="text-sm text-gray-600">
-                  {viewCategory.description || "Tidak ada deskripsi"}
-                </p>
+                <Label>Description</Label>
+                <p>{viewCategory.description || "No description"}</p>
               </div>
-
               <div>
-                <Label className="text-sm font-semibold">Status</Label>
-                <div className="mt-1">
-                  <Badge
-                    variant={viewCategory.is_active ? "success" : "destructive"}
-                  >
-                    {viewCategory.is_active ? "Aktif" : "Tidak Aktif"}
-                  </Badge>
-                </div>
+                <Label>Status</Label>
+                <Badge
+                  variant={viewCategory.is_active ? "default" : "secondary"}
+                >
+                  {viewCategory.is_active ? "Active" : "Inactive"}
+                </Badge>
               </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-sm font-semibold">Dibuat</Label>
-                  <p className="text-sm text-gray-600">
-                    {new Date(viewCategory.created_at).toLocaleDateString(
-                      "id-ID"
-                    )}{" "}
-                    {new Date(viewCategory.created_at)
-                      .toLocaleTimeString("id-ID", {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                        hour12: false,
-                      })
-                      .replace(".", ":")}
-                  </p>
-                </div>
-
-                <div>
-                  <Label className="text-sm font-semibold">
-                    Terakhir Update
-                  </Label>
-                  <p className="text-sm text-gray-600">
-                    {new Date(viewCategory.updated_at).toLocaleDateString(
-                      "id-ID"
-                    )}{" "}
-                    {new Date(viewCategory.updated_at)
-                      .toLocaleTimeString("id-ID", {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                        hour12: false,
-                      })
-                      .replace(".", ":")}
-                  </p>
-                </div>
+              <div>
+                <Label>State</Label>
+                <Badge
+                  variant={viewCategory.deleted_at ? "destructive" : "default"}
+                >
+                  {viewCategory.deleted_at ? "Deleted" : "Active"}
+                </Badge>
               </div>
             </div>
-
-            <DialogFooter>
-              <Button variant="outline" onClick={closeViewModal}>
-                Tutup
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      )}
+          )}
+          <DialogFooter>
+            <Button onClick={() => closeViewModal()}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

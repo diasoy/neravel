@@ -5,13 +5,9 @@ export default withAuth(
   function middleware(req) {
     const { pathname } = req.nextUrl;
     const token = req.nextauth.token;
-
-    // Jika user sudah login dan mencoba akses halaman auth, redirect ke dashboard
     if (token && pathname.startsWith("/auth")) {
       return NextResponse.redirect(new URL("/dashboard", req.url));
     }
-
-    // Jika user sudah login dan di home page, redirect ke dashboard
     if (token && pathname === "/") {
       return NextResponse.redirect(new URL("/dashboard", req.url));
     }
@@ -22,16 +18,10 @@ export default withAuth(
     callbacks: {
       authorized: ({ token, req }) => {
         const { pathname } = req.nextUrl;
-
-        // Public routes
         const publicRoutes = ["/", "/auth/login", "/auth/register"];
-
-        // Jika route public, allow
         if (publicRoutes.includes(pathname)) {
           return true;
         }
-
-        // Untuk protected routes, butuh token
         return !!token;
       },
     },

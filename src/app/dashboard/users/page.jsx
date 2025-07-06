@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useMemo } from "react";
 import TitleContent from "@/components/dashboard/TitleContent";
 import { DataTable } from "@/components/ui/data-table";
-import { UserModal } from "@/components/views/User/UserModal";
+import { UserModal } from "@/components/views/User/UserModal"; // ← TAMBAH INI
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -15,344 +15,222 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  useUsers,
+  useDeleteUser,
+  useToggleUserStatus,
+  useRestoreUser,
+} from "@/hooks/useUsers";
 import useDebounce from "@/hooks/useDebounce";
-import usersService from "@/services/users.service";
-import { useToast } from "@/hooks/useToast";
 import useUserStore from "@/store/userStore";
 
 const UsersPage = () => {
-  const { crud, loading, status } = useToast();
-
+  // UI State from Zustand Store
   const {
-    users,
-    pagination,
-    isLoading,
     searchTerm,
     isModalOpen,
     selectedUser,
-    isSubmitting,
     viewUser,
-    setUsers,
-    setPagination,
-    setIsLoading,
     setSearchTerm,
-    setIsSubmitting,
     openModal,
     closeModal,
     openViewModal,
     closeViewModal,
-    fetchUsers,
-    deleteUser,
-    toggleUserStatus,
   } = useUserStore();
+
+  // Local state for pagination
+  const [currentPage, setCurrentPage] = useState(1);
 
   // Debounced search term
   const debouncedSearchTerm = useDebounce(searchTerm, 500);
 
-  // Fetch users on component mount and search term change
-  useEffect(() => {
-    fetchUsers(1, debouncedSearchTerm);
-  }, [debouncedSearchTerm, fetchUsers]);
-
-  // Handler functions
-  const handlePageChange = useCallback(
-    (page) => {
-      fetchUsers(page, searchTerm);
-    },
-    [fetchUsers, searchTerm]
+  // Query parameters
+  const queryParams = useMemo(
+    () => ({
+      page: currentPage,
+      search: debouncedSearchTerm,
+    }),
+    [currentPage, debouncedSearchTerm]
   );
 
-  const handleSearch = useCallback(
-    (term) => {
-      setSearchTerm(term);
-    },
-    [setSearchTerm]
-  );
+  // React Query hooks for data fetching
+  const {
+    data: usersResponse,
+    isLoading,
+    error,
+    refetch,
+  } = useUsers(queryParams);
 
-  const handleAddUser = useCallback(() => {
-    openModal();
-  }, [openModal]);
+  // Mutation hooks
+  const deleteUserMutation = useDeleteUser();
+  const toggleStatusMutation = useToggleUserStatus();
+  const restoreUserMutation = useRestoreUser();
 
-  const handleEditUser = useCallback(
-    (user) => {
-      openModal(user);
-    },
-    [openModal]
-  );
+  // Extract data from response
+  const users = usersResponse?.data?.data || [];
+  const pagination = {
+    current_page: usersResponse?.data?.current_page || 1,
+    last_page: usersResponse?.data?.last_page || 1,
+    per_page: usersResponse?.data?.per_page || 8,
+    total: usersResponse?.data?.total || 0,
+    from: usersResponse?.data?.from || 0,
+    to: usersResponse?.data?.to || 0,
+  };
 
-  const handleViewUser = useCallback(
-    (user) => {
-      openViewModal(user);
-    },
-    [openViewModal]
-  );
+  // Event handlers
+  const handleSearch = (value) => {
+    setSearchTerm(value);
+    setCurrentPage(1);
+  };
 
-  const handleDeleteUser = useCallback(
-    async (user) => {
-      if (
-        window.confirm(`Apakah Anda yakin ingin menghapus user ${user.name}?`)
-      ) {
-        const success = await deleteUser(user.id);
-        if (success) {
-          crud.success("User berhasil dihapus");
-        } else {
-          crud.error("Gagal menghapus user");
-        }
-      }
-    },
-    [deleteUser, crud]
-  );
+  const handleDeleteUser = async (item) => {
+    try {
+      await deleteUserMutation.mutateAsync(item.id);
+    } catch (error) {
+      // Error handled by mutation
+    }
+  };
 
-  const handleToggleStatus = useCallback(
-    async (user) => {
-      const action = user.is_active ? "menonaktifkan" : "mengaktifkan";
-      if (
-        window.confirm(`Apakah Anda yakin ingin ${action} user ${user.name}?`)
-      ) {
-        const success = await toggleUserStatus(user.id);
-        if (success) {
-          crud.success(
-            `User berhasil ${user.is_active ? "dinonaktifkan" : "diaktifkan"}`
-          );
-        } else {
-          crud.error(`Gagal ${action} user`);
-        }
-      }
-    },
-    [toggleUserStatus, crud]
-  );
+  const handleRestoreUser = async (item) => {
+    try {
+      await restoreUserMutation.mutateAsync(item.id);
+    } catch (error) {
+      // Error handled by mutation
+    }
+  };
 
-  const handleFormSubmit = useCallback(
-    async (formData) => {
-      setIsSubmitting(true);
-      try {
-        if (selectedUser) {
-          // Update user
-          await usersService.update(selectedUser.id, formData);
-          crud.success("User berhasil diperbarui");
-        } else {
-          // Create user
-          await usersService.create(formData);
-          crud.success("User berhasil ditambahkan");
-        }
+  const handleToggleStatus = async (item) => {
+    try {
+      await toggleStatusMutation.mutateAsync(item.id);
+    } catch (error) {
+      // Error handled by mutation
+    }
+  };
 
-        closeModal();
-        fetchUsers(pagination.current_page || 1, searchTerm);
-      } catch (error) {
-        crud.error(
-          selectedUser ? "Gagal memperbarui user" : "Gagal menambahkan user"
-        );
-      } finally {
-        setIsSubmitting(false);
-      }
-    },
-    [
-      selectedUser,
-      setIsSubmitting,
-      crud,
-      closeModal,
-      fetchUsers,
-      pagination.current_page,
-      searchTerm,
-    ]
-  );
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+  };
 
-  // Columns configuration untuk data table
+  // Table columns definition
   const columns = [
     {
-      header: "No",
-      accessor: "no",
-      render: (item, index) => {
-        const currentPage = pagination.current_page || 1;
-        const perPage = pagination.per_page || 8;
-        return (currentPage - 1) * perPage + index + 1;
-      },
+      header: "Name",
+      accessor: "name",
     },
     {
-      header: "Nama User",
-      accessor: "name",
-      render: (item) => (
-        <div>
-          <div className="font-medium">{item.name}</div>
-          <div className="text-sm text-gray-500">{item.email}</div>
-        </div>
-      ),
+      header: "Email",
+      accessor: "email",
     },
     {
       header: "Role",
       accessor: "role",
-      render: (item) => (
-        <Badge variant={item.role === "admin" ? "default" : "secondary"}>
-          {item.role}
-        </Badge>
-      ),
+      render: (item) => <Badge variant="outline">{item.role || "User"}</Badge>,
     },
     {
       header: "Status",
       accessor: "is_active",
       render: (item) => (
-        <Badge variant={item.is_active ? "success" : "destructive"}>
-          {item.is_active ? "Aktif" : "Tidak Aktif"}
+        <Badge variant={item.is_active ? "default" : "secondary"}>
+          {item.is_active ? "Active" : "Inactive"}
         </Badge>
       ),
     },
     {
-      header: "Dibuat",
-      accessor: "created_at",
-      render: (item) => {
-        const date = new Date(item.created_at);
-        return (
-          <div className="text-sm">
-            <div>{date.toLocaleDateString("id-ID")}</div>
-            <div className="text-gray-500">
-              {date.toLocaleTimeString("id-ID", {
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
-            </div>
-          </div>
-        );
-      },
-    },
-    {
-      header: "Terakhir Update",
-      accessor: "updated_at",
-      render: (item) => {
-        const date = new Date(item.updated_at);
-        return (
-          <div className="text-sm">
-            <div>{date.toLocaleDateString("id-ID")}</div>
-            <div className="text-gray-500">
-              {date.toLocaleTimeString("id-ID", {
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
-            </div>
-          </div>
-        );
-      },
+      header: "State",
+      accessor: "deleted_at",
+      render: (item) => (
+        <Badge variant={item.deleted_at ? "destructive" : "default"}>
+          {item.deleted_at ? "Deleted" : "Active"}
+        </Badge>
+      ),
     },
   ];
 
+  // Debug log
+  console.log("Users data:", users);
+  console.log("Loading:", isLoading);
+  console.log("Error:", error);
+
   return (
     <div className="space-y-6">
-      <TitleContent title="Users" description="Kelola pengguna sistem Anda" />
+      <TitleContent title="Users Management" subtitle="Manage system users" />
 
       <DataTable
-        title="Daftar User"
-        description={`Total ${pagination.total || 0} user`}
-        data={users}
+        title="Users"
+        description="Manage your system users"
         columns={columns}
-        pagination={pagination}
+        data={users}
         isLoading={isLoading}
-        onPageChange={handlePageChange}
-        onSearch={handleSearch}
-        onAdd={handleAddUser}
-        onView={handleViewUser}
-        onEdit={handleEditUser}
-        onDelete={handleDeleteUser}
-        onToggleStatus={handleToggleStatus}
-        searchPlaceholder="Cari nama atau email user..."
+        pagination={pagination}
         searchValue={searchTerm}
-        showAddButton={false}
+        onSearch={handleSearch}
+        onPageChange={handlePageChange}
+        onAdd={() => openModal()}
+        onView={(item) => openViewModal(item)}
+        onEdit={(item) => openModal(item)}
+        onDelete={handleDeleteUser}
+        onRestore={handleRestoreUser}
+        onToggleStatus={handleToggleStatus}
+        searchPlaceholder="Cari user..."
+        addButtonText="Tambah User"
       />
 
-      {/* Add/Edit Modal */}
+      {/* User Modal for Create/Edit */}
       <UserModal
         isOpen={isModalOpen}
         onClose={closeModal}
-        onSubmit={handleFormSubmit}
         user={selectedUser}
-        isLoading={isSubmitting}
+        onSuccess={() => {
+          closeModal();
+        }}
       />
 
-      {/* Detail View Modal */}
-      {viewUser && (
-        <Dialog open={!!viewUser} onOpenChange={closeViewModal}>
-          <DialogContent className="sm:max-w-[500px]">
-            <DialogHeader>
-              <DialogTitle>Detail User</DialogTitle>
-              <DialogDescription>
-                Informasi lengkap user {viewUser.name}
-              </DialogDescription>
-            </DialogHeader>
-
+      {/* View User Dialog */}
+      <Dialog open={!!viewUser} onOpenChange={() => closeViewModal()}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>User Details</DialogTitle>
+            <DialogDescription>View user information</DialogDescription>
+          </DialogHeader>
+          {viewUser && (
             <div className="space-y-4">
               <div>
-                <Label className="text-sm font-semibold">Nama User</Label>
-                <p className="text-sm text-gray-600">{viewUser.name}</p>
+                <Label>Name</Label>
+                <p>{viewUser.name}</p>
               </div>
-
               <div>
-                <Label className="text-sm font-semibold">Email</Label>
-                <p className="text-sm text-gray-600">{viewUser.email}</p>
+                <Label>Email</Label>
+                <p>{viewUser.email}</p>
               </div>
-
               <div>
-                <Label className="text-sm font-semibold">Role</Label>
-                <div className="mt-1">
-                  <Badge
-                    variant={
-                      viewUser.role === "admin" ? "default" : "secondary"
-                    }
-                  >
-                    {viewUser.role}
-                  </Badge>
-                </div>
+                <Label>Role</Label>
+                <Badge variant="outline">{viewUser.role || "User"}</Badge>
               </div>
-
               <div>
-                <Label className="text-sm font-semibold">Status</Label>
-                <div className="mt-1">
-                  <Badge
-                    variant={viewUser.is_active ? "success" : "destructive"}
-                  >
-                    {viewUser.is_active ? "Aktif" : "Tidak Aktif"}
-                  </Badge>
-                </div>
+                <Label>Status</Label>
+                <Badge variant={viewUser.is_active ? "default" : "secondary"}>
+                  {viewUser.is_active ? "Active" : "Inactive"}
+                </Badge>
               </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-sm font-semibold">Dibuat</Label>
-                  <p className="text-sm text-gray-600">
-                    {new Date(viewUser.created_at).toLocaleDateString("id-ID")}{" "}
-                    {new Date(viewUser.created_at)
-                      .toLocaleTimeString("id-ID", {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                        hour12: false,
-                      })
-                      .replace(".", ":")}
-                  </p>
-                </div>
-
-                <div>
-                  <Label className="text-sm font-semibold">
-                    Terakhir Update
-                  </Label>
-                  <p className="text-sm text-gray-600">
-                    {new Date(viewUser.updated_at).toLocaleDateString("id-ID")}{" "}
-                    {new Date(viewUser.updated_at)
-                      .toLocaleTimeString("id-ID", {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                        hour12: false,
-                      })
-                      .replace(".", ":")}
-                  </p>
-                </div>
+              <div>
+                <Label>State</Label>
+                <Badge
+                  variant={viewUser.deleted_at ? "destructive" : "default"}
+                >
+                  {viewUser.deleted_at ? "Deleted" : "Active"}
+                </Badge>
+              </div>
+              <div>
+                <Label>Created At</Label>
+                <p>{new Date(viewUser.created_at).toLocaleDateString()}</p>
               </div>
             </div>
-
-            <DialogFooter>
-              <Button variant="outline" onClick={closeViewModal}>
-                Tutup
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      )}
+          )}
+          <DialogFooter>
+            <Button onClick={() => closeViewModal()}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

@@ -15,13 +15,13 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { LoadingSpinner } from "@/components/ui/loading";
+import { useCreateCategory, useUpdateCategory } from "@/hooks/useCategories";
 
 export function CategoryModal({
   isOpen,
   onClose,
-  onSubmit,
   category = null,
-  isLoading = false,
+  onSuccess,
 }) {
   const [formData, setFormData] = useState({
     name: "",
@@ -30,6 +30,12 @@ export function CategoryModal({
   });
 
   const isEdit = !!category;
+  
+  // React Query mutations
+  const createMutation = useCreateCategory();
+  const updateMutation = useUpdateCategory();
+  
+  const isLoading = createMutation.isPending || updateMutation.isPending;
 
   useEffect(() => {
     if (category) {
@@ -47,9 +53,23 @@ export function CategoryModal({
     }
   }, [category, isOpen]);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    onSubmit(formData);
+    
+    try {
+      if (isEdit) {
+        await updateMutation.mutateAsync({ 
+          id: category.id, 
+          data: formData 
+        });
+      } else {
+        await createMutation.mutateAsync(formData);
+      }
+      
+      onSuccess?.();
+    } catch (error) {
+      // Error handled by mutations
+    }
   };
 
   const handleChange = (field, value) => {

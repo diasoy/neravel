@@ -1,83 +1,53 @@
 import instance from "@/libs/axios/instance";
 
 const usersService = {
-  getUsers: async (params = {}, options = {}) => {
-    try {
-      const response = await instance.get("/users", {
-        params,
-        ...options,
-      });
-      return response.data;
-    } catch (error) {
-      throw new Error(
-        error.response?.data?.message ||
-          error.message ||
-          "Failed to fetch users"
-      );
-    }
+  // Get all users with pagination and search
+  getUsers: async (params = {}) => {
+    const response = await instance.get("/users", { params });
+    return response.data;
   },
 
-  create: async (data) => {
-    try {
-      const response = await instance.post("/users", data);
-      return response.data;
-    } catch (error) {
-      throw error;
-    }
+  // Get single user by ID
+  getUserById: async (id) => {
+    const response = await instance.get(`/users/${id}`);
+    return response.data;
   },
 
-  get: async (id) => {
-    try {
-      const response = await instance.get(`/users/${id}`);
-      return response.data;
-    } catch (error) {
-      if (error.code === "ERR_CANCELED" || error.name === "CanceledError") {
-        throw error;
-      }
-      throw error;
-    }
+  // Create new user
+  createUser: async (data) => {
+    const response = await instance.post("/users", data);
+    return response.data;
   },
 
-  update: async (id, data) => {
-    try {
-      const response = await instance.put(`/users/${id}`, data);
-      return response.data;
-    } catch (error) {
-      throw error;
-    }
+  // Update user
+  updateUser: async (id, data) => {
+    const response = await instance.put(`/users/${id}`, data);
+    return response.data;
   },
 
-  delete: async (id) => {
-    try {
-      const response = await instance.delete(`/users/${id}`);
-      return response.data;
-    } catch (error) {
-      throw error;
-    }
+  // Delete user (soft delete)
+  deleteUser: async (id) => {
+    const response = await instance.delete(`/users/${id}`);
+    return response.data;
   },
 
-  toggleStatus: async (id) => {
-    try {
-      const response = await instance.patch(`/users/${id}/toggle-status`);
-      return response.data;
-    } catch (error) {
-      throw error;
-    }
+  // Restore deleted user
+  restoreUser: async (id) => {
+    const response = await instance.post(`/users/${id}/restore`);
+    return response.data;
   },
 
-  updateRole: async (id, data) => {
-    try {
-      const response = await instance.put(`/users/${id}/role`, data);
-      return response.data;
-    } catch (error) {
-      throw error;
-    }
+  // Toggle user status (active/inactive)
+  toggleUserStatus: async (id) => {
+    const response = await instance.patch(`/users/${id}/toggle-status`);
+    return response.data;
   },
 
-  createUser: async (data) => usersService.create(data),
-  getUser: async (id) => usersService.get(id),
-  updateUser: async (id, data) => usersService.update(id, data),
-  deleteUser: async (id) => usersService.delete(id),
+  // Update user role
+  updateUserRole: async (id, data) => {
+    const response = await instance.patch(`/users/${id}/role`, data);
+    return response.data;
+  },
 };
 
 export default usersService;
